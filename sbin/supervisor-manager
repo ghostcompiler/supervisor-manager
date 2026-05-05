@@ -1,0 +1,17 @@
+#!/bin/sh
+
+DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+
+for PHP_BIN in \
+    /usr/local/psa/admin/bin/php \
+    /opt/psa/admin/bin/php \
+    /usr/bin/php \
+    /usr/local/bin/php
+do
+    if [ -x "$PHP_BIN" ]; then
+        exec "$PHP_BIN" "$DIR/supervisor-manager.php" "$@"
+    fi
+done
+
+echo "Unable to find PHP binary for Plesk helper. Checked /usr/local/psa/admin/bin/php, /opt/psa/admin/bin/php, /usr/bin/php, /usr/local/bin/php." >&2
+exit 127

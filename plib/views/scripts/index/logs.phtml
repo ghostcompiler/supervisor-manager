@@ -1,0 +1,91 @@
+<?php
+$id = $this->program['id'];
+$baseLogsUrl = pm_Context::getActionUrl('index', 'logs') . '?id=' . urlencode($id);
+$dataUrl = pm_Context::getBaseUrl() . 'index.php/index/log-data?id=' . urlencode($id);
+?>
+
+<div class="sm-log-page">
+    <div class="sm-log-head">
+        <div>
+            <h1><?php echo $this->escape($this->program['display_name']); ?> Logs</h1>
+            <p>
+                <?php echo $this->escape($this->program['name']); ?>
+                <?php if (!empty($this->program['log_path'])): ?>
+                    <span><?php echo $this->escape($this->program['log_path']); ?></span>
+                <?php endif; ?>
+            </p>
+        </div>
+        <div class="sm-log-actions">
+            <a class="btn" href="<?php echo $this->escape(pm_Context::getActionUrl('index', 'index')); ?>">Back</a>
+            <a class="btn" href="<?php echo $this->escape($baseLogsUrl . '&lines=120'); ?>">120</a>
+            <a class="btn" href="<?php echo $this->escape($baseLogsUrl . '&lines=300'); ?>">300</a>
+            <a class="btn" href="<?php echo $this->escape($baseLogsUrl . '&lines=500'); ?>">500</a>
+            <button class="btn" type="button" id="sm-log-toggle">Pause</button>
+        </div>
+    </div>
+
+    <div class="sm-log-meta">
+        <span id="sm-log-state">Live preview on</span>
+        <span>Last update: <strong id="sm-log-updated">loading</strong></span>
+        <span>Lines: <?php echo (int) $this->lines; ?></span>
+    </div>
+
+    <pre
+        class="sm-log"
+        id="sm-log-output"
+        data-url="<?php echo $this->escape($dataUrl . '&lines=' . (int) $this->lines); ?>"
+    ><?php echo $this->escape($this->log); ?></pre>
+</div>
+
+<script>
+(function () {
+    var output = document.getElementById('sm-log-output');
+    var toggle = document.getElementById('sm-log-toggle');
+    var state = document.getElementById('sm-log-state');
+    var updated = document.getElementById('sm-log-updated');
+    var paused = false;
+    var loading = false;
+
+    function scrollBottom() {
+        output.scrollTop = output.scrollHeight;
+    }
+
+    function refreshLog() {
+        if (paused || loading) {
+            return;
+        }
+        loading = true;
+        fetch(output.getAttribute('data-url'), {
+            cache: 'no-store',
+            credentials: 'same-origin'
+        })
+            .then(function (response) { return response.json(); })
+            .then(function (data) {
+                output.textContent = data.log || '';
+                updated.textContent = data.updated_at || 'now';
+                state.textContent = data.ok ? 'Live preview on' : 'Live preview error';
+                scrollBottom();
+            })
+            .catch(function (error) {
+                state.textContent = 'Live preview error';
+                output.textContent = String(error);
+            })
+            .finally(function () {
+                loading = false;
+            });
+    }
+
+    toggle.addEventListener('click', function () {
+        paused = !paused;
+        toggle.textContent = paused ? 'Resume' : 'Pause';
+        state.textContent = paused ? 'Live preview paused' : 'Live preview on';
+        if (!paused) {
+            refreshLog();
+        }
+    });
+
+    scrollBottom();
+    refreshLog();
+    window.setInterval(refreshLog, 2500);
+}());
+</script>

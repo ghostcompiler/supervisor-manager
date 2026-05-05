@@ -1,0 +1,80 @@
+<?php
+$data = $this->formData;
+$action = pm_Context::getBaseUrl() . 'index.php/index/save';
+$cancel = pm_Context::getBaseUrl() . 'index.php/index/index';
+?>
+
+<?php if (!empty($this->error)): ?>
+    <div class="sm-message sm-message-error"><?php echo $this->escape($this->error); ?></div>
+<?php endif; ?>
+
+<form class="sm-editor" method="post" action="<?php echo $this->escape($action); ?>">
+    <?php if (!empty($data['id'])): ?>
+        <input type="hidden" name="id" value="<?php echo $this->escape($data['id']); ?>">
+    <?php endif; ?>
+
+    <div class="sm-editor-head">
+        <h1><?php echo empty($data['id']) ? 'Add Supervisor Program' : 'Edit Supervisor Program'; ?></h1>
+        <p>Save writes the Supervisor config and returns to the manager page.</p>
+    </div>
+
+    <label>
+        <span>Supervisor Program Name *</span>
+        <input type="text" name="name" required value="<?php echo $this->escape($data['name']); ?>" placeholder="ssr">
+        <em>Exact Supervisor process name, for example ssr or queue-worker.</em>
+    </label>
+
+    <label>
+        <span>Display Name</span>
+        <input type="text" name="display_name" value="<?php echo $this->escape($data['display_name']); ?>" placeholder="SSR">
+    </label>
+
+    <label>
+        <span>Assigned Domain *</span>
+        <select name="domain_id" required>
+            <option value="">Select domain</option>
+            <?php foreach ($this->domains as $id => $name): ?>
+                <option value="<?php echo (int) $id; ?>" <?php echo (int) $data['domain_id'] === (int) $id ? 'selected' : ''; ?>>
+                    <?php echo $this->escape($name); ?>
+                </option>
+            <?php endforeach; ?>
+        </select>
+    </label>
+
+    <label class="sm-editor-wide">
+        <span>Command *</span>
+        <textarea name="command" rows="3" required placeholder="php artisan inertia:start-ssr"><?php echo $this->escape($data['command']); ?></textarea>
+        <em>Command to run, for example php artisan queue:work or php artisan inertia:start-ssr.</em>
+    </label>
+
+    <label>
+        <span>Project Root</span>
+        <input type="text" name="working_directory" value="<?php echo $this->escape($data['working_directory']); ?>" placeholder="/var/www/vhosts/example.com/app">
+        <em>Folder containing artisan/package.json. Must stay inside the selected domain area.</em>
+    </label>
+
+    <div class="sm-checks">
+        <label>
+            <input type="checkbox" name="autostart" value="1" <?php echo !empty($data['autostart']) ? 'checked' : ''; ?>>
+            <span>Start on boot</span>
+        </label>
+        <label>
+            <input type="checkbox" name="autorestart" value="1" <?php echo !empty($data['autorestart']) ? 'checked' : ''; ?>>
+            <span>Restart if it exits</span>
+        </label>
+        <label>
+            <input type="checkbox" name="enabled" value="1" <?php echo !empty($data['enabled']) ? 'checked' : ''; ?>>
+            <span>Enabled</span>
+        </label>
+    </div>
+
+    <label class="sm-editor-wide">
+        <span>Notes</span>
+        <textarea name="description" rows="4"><?php echo $this->escape($data['description']); ?></textarea>
+    </label>
+
+    <div class="sm-editor-actions">
+        <button class="btn action" type="submit">Save</button>
+        <a class="btn" href="<?php echo $this->escape($cancel); ?>">Cancel</a>
+    </div>
+</form>

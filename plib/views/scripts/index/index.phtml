@@ -1,0 +1,158 @@
+<div class="sm-shell">
+    <div class="sm-commandbar">
+        <div class="sm-toolbar">
+            <?php if ($this->isAdmin): ?>
+                <a class="btn" href="<?php echo $this->escape(pm_Context::getActionUrl('index', 'add')); ?>">Add Program</a>
+                <form method="post" action="<?php echo $this->escape(pm_Context::getActionUrl('index', 'reload')); ?>">
+                    <button class="btn" type="submit">Reread</button>
+                </form>
+                <?php if (empty($this->diagnostics['installed'])): ?>
+                    <form method="post" action="<?php echo $this->escape(pm_Context::getActionUrl('index', 'install')); ?>" onsubmit="return confirm('Install Supervisor on this server now?');">
+                        <button class="btn" type="submit">Install</button>
+                    </form>
+                <?php endif; ?>
+            <?php endif; ?>
+            <a class="btn" href="<?php echo $this->escape(pm_Context::getActionUrl('index', 'index')); ?>">Refresh</a>
+        </div>
+    </div>
+
+<?php if (!empty($this->notice)): ?>
+    <div class="sm-message sm-message-info"><?php echo $this->escape($this->notice); ?></div>
+<?php endif; ?>
+
+<?php if (!empty($this->error)): ?>
+    <div class="sm-message sm-message-error"><?php echo $this->escape($this->error); ?></div>
+<?php endif; ?>
+
+    <?php if ($this->isAdmin): ?>
+        <div class="sm-summary">
+            <div class="sm-summary-item">
+                <span>Managed Processes</span>
+                <strong><?php echo count($this->programs); ?></strong>
+            </div>
+            <div class="sm-summary-item">
+                <span>Supervisor</span>
+                <strong><?php echo empty($this->diagnostics['installed']) ? 'Not installed' : 'Installed'; ?></strong>
+            </div>
+            <div class="sm-summary-item">
+                <span>OS</span>
+                <strong><?php echo $this->escape(isset($this->diagnostics['os']) ? $this->diagnostics['os'] : 'Unknown'); ?></strong>
+            </div>
+            <div class="sm-summary-item">
+                <span>Config Directory</span>
+                <strong><?php echo $this->escape(isset($this->diagnostics['config_dir']) ? $this->diagnostics['config_dir'] : '/etc/supervisor/conf.d'); ?></strong>
+            </div>
+            <div class="sm-summary-item">
+                <span>Service</span>
+                <strong><?php echo $this->escape(isset($this->diagnostics['service']) ? $this->diagnostics['service'] : 'supervisor'); ?></strong>
+            </div>
+        </div>
+        <?php if (empty($this->diagnostics['installed'])): ?>
+            <p class="sm-muted">
+                <?php if (!empty($this->diagnostics['error'])): ?>
+                    Diagnostic error: <code><?php echo $this->escape($this->diagnostics['error']); ?></code><br>
+                <?php endif; ?>
+                <?php if (!empty($this->diagnostics['supports_install'])): ?>
+                    Automatic install command: <code><?php echo $this->escape($this->diagnostics['install_command']); ?></code><br>
+                    Manual SSH command: <code>sudo <?php echo $this->escape($this->diagnostics['install_command']); ?></code>
+                <?php else: ?>
+                    Automatic install is not available for this OS. Install Supervisor manually, then refresh.
+                <?php endif; ?>
+            </p>
+        <?php endif; ?>
+    <?php endif; ?>
+
+    <?php if (empty($this->programs)): ?>
+        <div class="sm-empty">
+            <h3>No Supervisor programs assigned</h3>
+            <p>
+                <?php if ($this->isAdmin): ?>
+                    Add a program and assign it to a hosted domain.
+                <?php else: ?>
+                    Ask the server administrator to assign Supervisor programs for your domains.
+                <?php endif; ?>
+            </p>
+        </div>
+    <?php else: ?>
+        <div class="sm-list">
+        <?php foreach ($this->programs as $program): ?>
+            <?php
+            $status = isset($this->statuses[$program['name']]) ? $this->statuses[$program['name']] : array('state' => 'UNKNOWN', 'detail' => 'Not checked.');
+            $stateClass = 'sm-status-' . strtolower($status['state']);
+            $configExists = !empty($this->configExists[$program['id']]);
+            ?>
+            <section class="sm-row">
+                <div class="sm-row-main">
+                    <div class="sm-row-title">
+                        <h3><?php echo $this->escape($program['display_name']); ?></h3>
+                        <p class="sm-muted"><?php echo $this->escape($program['domain_name']); ?></p>
+                    </div>
+                    <div class="sm-row-status">
+                        <span class="sm-status <?php echo $this->escape($stateClass); ?>"><?php echo $this->escape($status['state']); ?></span>
+                        <span class="sm-mini <?php echo $configExists ? 'sm-mini-ok' : 'sm-mini-bad'; ?>"><?php echo $configExists ? 'config ok' : 'config missing'; ?></span>
+                    </div>
+                    <p class="sm-status-line"><?php echo $this->escape($status['detail']); ?></p>
+                    <dl class="sm-facts">
+                        <?php if (!empty($program['command'])): ?>
+                            <div>
+                                <dt>Command</dt>
+                                <dd><code><?php echo $this->escape($program['command']); ?></code></dd>
+                            </div>
+                        <?php endif; ?>
+                        <?php if (!empty($program['working_directory'])): ?>
+                            <div>
+                                <dt>Project Root</dt>
+                                <dd><code><?php echo $this->escape($program['working_directory']); ?></code></dd>
+                            </div>
+                        <?php endif; ?>
+                        <?php if (!empty($program['config_path'])): ?>
+                            <div>
+                                <dt>Config</dt>
+                                <dd><code><?php echo $this->escape($program['config_path']); ?></code></dd>
+                            </div>
+                        <?php endif; ?>
+                        <?php if (!empty($program['log_path'])): ?>
+                            <div>
+                                <dt>Log</dt>
+                                <dd><code><?php echo $this->escape($program['log_path']); ?></code></dd>
+                            </div>
+                        <?php endif; ?>
+                    </dl>
+                </div>
+                <?php if (!empty($program['description'])): ?>
+                    <p class="sm-notes"><?php echo nl2br($this->escape($program['description'])); ?></p>
+                <?php endif; ?>
+                <div class="sm-actions">
+                    <form method="post" action="<?php echo $this->escape(pm_Context::getActionUrl('index', 'action')); ?>">
+                        <input type="hidden" name="id" value="<?php echo $this->escape($program['id']); ?>">
+                        <input type="hidden" name="program_action" value="start">
+                        <button class="btn" type="submit" <?php echo empty($program['enabled']) ? 'disabled' : ''; ?>>Start</button>
+                    </form>
+                    <form method="post" action="<?php echo $this->escape(pm_Context::getActionUrl('index', 'action')); ?>">
+                        <input type="hidden" name="id" value="<?php echo $this->escape($program['id']); ?>">
+                        <input type="hidden" name="program_action" value="stop">
+                        <button class="btn" type="submit" <?php echo empty($program['enabled']) ? 'disabled' : ''; ?>>Stop</button>
+                    </form>
+                    <form method="post" action="<?php echo $this->escape(pm_Context::getActionUrl('index', 'action')); ?>">
+                        <input type="hidden" name="id" value="<?php echo $this->escape($program['id']); ?>">
+                        <input type="hidden" name="program_action" value="restart">
+                        <button class="btn" type="submit" <?php echo empty($program['enabled']) ? 'disabled' : ''; ?>>Restart</button>
+                    </form>
+                    <a class="btn" href="<?php echo $this->escape(pm_Context::getActionUrl('index', 'logs') . '?id=' . urlencode($program['id'])); ?>" target="_blank" rel="noopener noreferrer">Logs</a>
+                    <?php if ($this->isAdmin): ?>
+                        <form method="post" action="<?php echo $this->escape(pm_Context::getActionUrl('index', 'generate')); ?>">
+                            <input type="hidden" name="id" value="<?php echo $this->escape($program['id']); ?>">
+                            <button class="btn" type="submit">Generate Config</button>
+                        </form>
+                        <a class="btn" href="<?php echo $this->escape(pm_Context::getActionUrl('index', 'edit') . '?id=' . urlencode($program['id'])); ?>">Edit</a>
+                        <form method="post" action="<?php echo $this->escape(pm_Context::getActionUrl('index', 'delete')); ?>" onsubmit="return confirm('Remove this program assignment?');">
+                            <input type="hidden" name="id" value="<?php echo $this->escape($program['id']); ?>">
+                            <button class="btn" type="submit">Delete</button>
+                        </form>
+                    <?php endif; ?>
+                </div>
+            </section>
+        <?php endforeach; ?>
+        </div>
+    <?php endif; ?>
+</div>

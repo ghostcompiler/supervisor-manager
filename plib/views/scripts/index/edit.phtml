@@ -1,0 +1,5 @@
+<?php echo $this->partial('index/add.phtml', array(
+    'formData' => $this->formData,
+    'domains' => $this->domains,
+    'error' => isset($this->error) ? $this->error : null,
+)); ?>

@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<module>
+  <id>supervisor-manager</id>
+  <name>Supervisor Manager</name>
+  <description>Manage Supervisor programs from Plesk for administrators, resellers, and customers.</description>
+  <category>server_tool</category>
+  <category>client_tool</category>
+  <version>1.0.0</version>
+  <release>1</release>
+  <vendor>Local</vendor>
+  <url>https://example.com</url>
+  <support_url>https://example.com/support</support_url>
+  <plesk_min_version>17.8.0</plesk_min_version>
+</module>
