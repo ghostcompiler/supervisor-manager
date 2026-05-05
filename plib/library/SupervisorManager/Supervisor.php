@@ -101,7 +101,26 @@ class SupervisorManager_Supervisor
             return false;
         }
 
+        if (!$this->isManagedConfigPath($program['config_path'])) {
+            return false;
+        }
+
         return file_exists($program['config_path']);
+    }
+
+    private function isManagedConfigPath($path)
+    {
+        if (!is_string($path) || preg_match('/[\r\n]/', $path)) {
+            return false;
+        }
+
+        $directory = rtrim(dirname($path), '/');
+        $file = basename($path);
+        if (!in_array($directory, array('/etc/supervisor/conf.d', '/etc/supervisord.d'), true)) {
+            return false;
+        }
+
+        return (bool) preg_match('/^plesk-[A-Za-z0-9_.-]+\.conf$/', $file);
     }
 
     private function call($action, $program, array $extra = array())

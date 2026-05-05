@@ -238,7 +238,7 @@ class SupervisorManager_Permissions
             return true;
         }
 
-        return self::isSupervisorLimitPermissionFallback($domain, $permission);
+        return self::hasSupervisorResourceGrant($client, $domain, $permission);
     }
 
     private static function hasPlanPermission($domain, $permission)
@@ -263,9 +263,16 @@ class SupervisorManager_Permissions
         }
     }
 
-    private static function isSupervisorLimitPermissionFallback($domain, $permission)
+    private static function hasSupervisorResourceGrant($client, $domain, $permission)
     {
-        if (!in_array($permission, array(self::ACCESS, self::MANAGE), true)) {
+        if ($permission !== self::MANAGE) {
+            return false;
+        }
+
+        if (
+            !self::hasClientPermission($client, self::ACCESS, $domain) &&
+            !self::hasPlanPermission($domain, self::ACCESS)
+        ) {
             return false;
         }
 

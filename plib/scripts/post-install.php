@@ -16,10 +16,8 @@ $moduleId = pm_Context::getModuleId();
 $helpers = array(
     '/usr/local/psa/admin/bin/modules/' . $moduleId . '/supervisor-manager',
     '/usr/local/psa/admin/bin/modules/' . $moduleId . '/supervisor-manager.php',
-    '/usr/local/psa/admin/bin/modules/' . $moduleId . '/supervisorctl.php',
     '/usr/local/psa/admin/sbin/modules/' . $moduleId . '/supervisor-manager',
     '/usr/local/psa/admin/sbin/modules/' . $moduleId . '/supervisor-manager.php',
-    '/usr/local/psa/admin/sbin/modules/' . $moduleId . '/supervisorctl.php',
 );
 
 foreach ($helpers as $helper) {

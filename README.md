@@ -125,20 +125,20 @@ This URL points to the rolling `latest` release asset. The **Package Latest** wo
 Pinned version installs are also available after publishing a versioned release:
 
 ```sh
-plesk bin extension --install-url https://github.com/ghostcompiler/supervisor-manager/releases/download/v1.0.0/supervisor-manager-1.0.0.zip
+plesk bin extension --install-url https://github.com/ghostcompiler/supervisor-manager/releases/download/v1.0.1/supervisor-manager-1.0.1.zip
 ```
 
 Build the extension ZIP:
 
 ```sh
 mkdir -p build
-COPYFILE_DISABLE=1 zip -r build/supervisor-manager-1.0.0.zip meta.xml DESCRIPTION.md CHANGES.md README.md htdocs plib sbin -x '*.DS_Store' -x '__MACOSX/*'
+COPYFILE_DISABLE=1 zip -r build/supervisor-manager-1.0.1.zip meta.xml DESCRIPTION.md CHANGES.md README.md htdocs plib sbin -x '*.DS_Store' -x '__MACOSX/*'
 ```
 
 Install through Plesk CLI:
 
 ```sh
-plesk bin extension --install build/supervisor-manager-1.0.0.zip
+plesk bin extension --install build/supervisor-manager-1.0.1.zip
 ```
 
 Or install through Plesk UI:
@@ -146,12 +146,12 @@ Or install through Plesk UI:
 1. Open **Plesk Admin**.
 2. Go to **Extensions**.
 3. Click **Upload Extension**.
-4. Upload `build/supervisor-manager-1.0.0.zip`.
+4. Upload `build/supervisor-manager-1.0.1.zip`.
 5. Open **Supervisor** from the Plesk sidebar.
 
-## Version 1.0.0
+## Version 1.0.1
 
-Version 1.0.0 is the fresh public release of Supervisor Manager. It includes scoped admin, reseller, and customer access; service plan permissions and limits; domain Dev Tools integration; config generation; process control; live logs; the Info panel; Ghost Compiler branding; and GitHub Actions packaging.
+Version 1.0.1 is a security and polish release for Supervisor Manager. It keeps the scoped admin, reseller, and customer access model from 1.0.0, and adds stricter server-side flash messages, tighter non-admin permission fallback, hardened config path checks, a smaller privileged helper surface, and a compact locked-domain form display.
 
 After installing:
 
@@ -387,7 +387,7 @@ Package:
 
 ```sh
 mkdir -p build
-COPYFILE_DISABLE=1 zip -r build/supervisor-manager-1.0.0.zip meta.xml DESCRIPTION.md CHANGES.md README.md htdocs plib sbin -x '*.DS_Store' -x '__MACOSX/*'
+COPYFILE_DISABLE=1 zip -r build/supervisor-manager-1.0.1.zip meta.xml DESCRIPTION.md CHANGES.md README.md htdocs plib sbin -x '*.DS_Store' -x '__MACOSX/*'
 ```
 
 ## Release Automation
@@ -398,9 +398,9 @@ GitHub Actions handles packaging and release assets:
 - `CI` validates PHP syntax, validates `meta.xml`, builds the ZIP, tests the ZIP, and uploads it as a workflow artifact.
 - `Package Latest` runs on every push to `main` and can be started manually.
 - `Package Latest` moves the rolling `latest` tag to the current commit and uploads `supervisor-manager.zip` to that release.
-- `Release` runs when a tag like `v1.0.0` is pushed, or when started manually.
+- `Release` runs when a tag like `v1.0.1` is pushed, or when started manually.
 - `Release` requires the tag version to match `meta.xml`.
-- `Release` uploads versioned assets like `supervisor-manager-1.0.0.zip` for pinned installs.
+- `Release` uploads versioned assets like `supervisor-manager-1.0.1.zip` for pinned installs.
 
 Refresh the rolling latest installer from the current `main` branch:
 
@@ -417,20 +417,20 @@ plesk bin extension --install-url https://github.com/ghostcompiler/supervisor-ma
 Create a release:
 
 ```sh
-git tag v1.0.0
-git push origin v1.0.0
+git tag v1.0.1
+git push origin v1.0.1
 ```
 
 After the release workflow finishes, the pinned install command works:
 
 ```sh
-plesk bin extension --install-url https://github.com/ghostcompiler/supervisor-manager/releases/download/v1.0.0/supervisor-manager-1.0.0.zip
+plesk bin extension --install-url https://github.com/ghostcompiler/supervisor-manager/releases/download/v1.0.1/supervisor-manager-1.0.1.zip
 ```
 
 Install locally on Plesk:
 
 ```sh
-plesk bin extension --install build/supervisor-manager-1.0.0.zip
+plesk bin extension --install build/supervisor-manager-1.0.1.zip
 ```
 
 ## License

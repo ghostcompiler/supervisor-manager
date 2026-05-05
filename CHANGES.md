@@ -1,3 +1,11 @@
+# 1.0.1
+
+- Hardened status messages so success and error banners only come from server-side flash state, not URL parameters.
+- Tightened non-admin access fallback so Supervisor Manager access still requires the explicit access permission before a resource limit can allow program management.
+- Hardened config existence checks to only probe managed Supervisor config paths.
+- Removed an unused duplicate privileged helper from the packaged `sbin` surface.
+- Compact locked domain display on the add/edit form so it aligns with the rest of the fields.
+
 # 1.0.0
 
 - Initial Supervisor Manager extension release.

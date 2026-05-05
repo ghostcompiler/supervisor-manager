@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag, for example v1.0.0"
+        description: "Release tag, for example v1.0.1"
         required: true
         type: string
 
@@ -77,6 +77,6 @@ jobs:
             gh release upload "$tag" "supervisor-manager-${version}.zip" --clobber
           else
             gh release create "$tag" "supervisor-manager-${version}.zip" \
-              --title "Supervisor Manager $tag" \
+              --title "$tag" \
               --notes-file release-notes.md
           fi
