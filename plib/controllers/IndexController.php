@@ -2,6 +2,7 @@
 
 require_once pm_Context::getPlibDir() . '/library/SupervisorManager/Store.php';
 require_once pm_Context::getPlibDir() . '/library/SupervisorManager/Supervisor.php';
+require_once pm_Context::getPlibDir() . '/library/SupervisorManager/Permissions.php';
 
 class IndexController extends pm_Controller_Action
 {
@@ -21,7 +22,14 @@ class IndexController extends pm_Controller_Action
     public function indexAction()
     {
         $domainId = $this->currentDomainId();
-        $programs = $this->store->visibleForCurrentUser($domainId);
+        $accessError = $this->indexAccessError($domainId);
+        $programs = array();
+        if ($accessError === null) {
+            $programs = SupervisorManager_Permissions::filterPrograms(
+                $this->store->visibleForCurrentUser($domainId),
+                SupervisorManager_Permissions::ACCESS
+            );
+        }
         $names = array();
         foreach ($programs as $program) {
             if (!empty($program['enabled'])) {
@@ -35,8 +43,12 @@ class IndexController extends pm_Controller_Action
         $this->view->diagnostics = $this->safeDiagnostics();
         $flash = $this->pullFlash();
         $this->view->notice = $this->_request->getParam('notice') ?: (isset($flash['notice']) ? $flash['notice'] : null);
-        $this->view->error = $this->_request->getParam('error') ?: (isset($flash['error']) ? $flash['error'] : null);
-        $this->view->isAdmin = pm_Session::getClient()->isAdmin();
+        $this->view->error = $this->_request->getParam('error') ?: ($accessError ?: (isset($flash['error']) ? $flash['error'] : null));
+        $this->view->isAdmin = $this->currentClientIsAdmin();
+        $this->view->canCreate = $this->canCreate($domainId);
+        $this->view->canReread = $this->currentClientIsAdmin();
+        $this->view->canInstall = $this->currentClientIsAdmin();
+        $this->view->programPermissions = $this->programPermissions($programs);
         $this->view->domainId = $domainId;
         $this->view->domainContext = $domainId !== null && $domainId !== '';
         $this->view->domainName = $this->domainName($domainId);
@@ -45,14 +57,21 @@ class IndexController extends pm_Controller_Action
 
     public function addAction()
     {
-        $this->requireAdmin();
         $domainId = $this->currentDomainId();
         $formData = $this->formData();
         if ($domainId !== null && $domainId !== '') {
+            SupervisorManager_Permissions::assertDomain(SupervisorManager_Permissions::MANAGE, $domainId);
+            SupervisorManager_Permissions::assertProgramLimit($domainId, $this->store->countForDomain($domainId));
             $formData['domain_id'] = (int) $domainId;
+            $domains = $this->store->domains();
+        } else {
+            $domains = $this->creatableDomains();
+            if (empty($domains)) {
+                throw new pm_Exception('Supervisor program management is not enabled for any domain, or the program limit has been reached.');
+            }
         }
         $this->view->formData = $formData;
-        $this->view->domains = $this->store->domains();
+        $this->view->domains = $domains;
         $this->view->domainContext = $domainId !== null && $domainId !== '';
         $this->view->domainId = $domainId;
         $this->view->domainName = $this->domainName($domainId);
@@ -61,14 +80,13 @@ class IndexController extends pm_Controller_Action
 
     public function editAction()
     {
-        $this->requireAdmin();
         $domainId = $this->currentDomainId();
-        $program = $this->store->get($this->_request->getParam('id'));
-        if ($domainId !== null && $domainId !== '' && !$this->store->belongsToDomainContext($program, $domainId)) {
-            throw new pm_Exception('Program does not belong to the selected domain.');
-        }
+        $program = $this->getProgramForAction($this->_request->getParam('id'), SupervisorManager_Permissions::MANAGE);
         $this->view->formData = $this->formData($program);
-        $this->view->domains = $this->store->domains();
+        $this->view->domains = SupervisorManager_Permissions::filterDomains(
+            $this->store->domains(),
+            SupervisorManager_Permissions::MANAGE
+        );
         $this->view->domainContext = $domainId !== null && $domainId !== '';
         $this->view->domainId = $domainId;
         $this->view->domainName = $this->domainName($domainId);
@@ -77,7 +95,6 @@ class IndexController extends pm_Controller_Action
 
     public function saveAction()
     {
-        $this->requireAdmin();
         $this->requirePost();
 
         $data = array(
@@ -94,6 +111,12 @@ class IndexController extends pm_Controller_Action
 
         try {
             $id = $this->_request->getPost('id');
+            $existingProgram = null;
+            if ($id !== null && $id !== '') {
+                $existingProgram = $this->getProgramForAction($id, SupervisorManager_Permissions::MANAGE);
+            }
+            SupervisorManager_Permissions::assertDomain(SupervisorManager_Permissions::MANAGE, $data['domain_id']);
+            $this->assertProgramCapacity($data, $id ?: null, $existingProgram);
             $program = $this->store->save($data, $id ?: null);
             $this->supervisor->writeConfig($program);
             try {
@@ -106,7 +129,10 @@ class IndexController extends pm_Controller_Action
             $this->_status->addMessage('error', $e->getMessage());
             $this->view->error = $e->getMessage();
             $this->view->formData = $this->formData(array_merge($data, array('id' => $this->_request->getPost('id'))));
-            $this->view->domains = $this->store->domains();
+            $this->view->domains = SupervisorManager_Permissions::filterDomains(
+                $this->store->domains(),
+                SupervisorManager_Permissions::MANAGE
+            );
             $domainId = $this->currentDomainId();
             $this->view->domainContext = $domainId !== null && $domainId !== '';
             $this->view->domainId = $domainId;
@@ -118,10 +144,8 @@ class IndexController extends pm_Controller_Action
 
     public function deleteAction()
     {
-        $this->requireAdmin();
         $this->requirePost();
-        $program = $this->store->get($this->_request->getPost('id'));
-        $this->requireProgramInCurrentDomain($program);
+        $program = $this->getProgramForAction($this->_request->getPost('id'), SupervisorManager_Permissions::MANAGE);
         try {
             $this->supervisor->deleteConfig($program);
             $this->supervisor->reload();
@@ -134,11 +158,9 @@ class IndexController extends pm_Controller_Action
 
     public function generateAction()
     {
-        $this->requireAdmin();
         $this->requirePost();
 
-        $program = $this->store->get($this->_request->getPost('id'));
-        $this->requireProgramInCurrentDomain($program);
+        $program = $this->getProgramForAction($this->_request->getPost('id'), SupervisorManager_Permissions::MANAGE);
         try {
             $this->supervisor->writeConfig($program);
             try {
@@ -158,8 +180,7 @@ class IndexController extends pm_Controller_Action
 
         $id = $this->_request->getPost('id');
         $action = $this->_request->getPost('program_action');
-        $program = $this->store->getVisible($id);
-        $this->requireProgramInCurrentDomain($program);
+        $program = $this->getProgramForAction($id, SupervisorManager_Permissions::CONTROL);
 
         if (empty($program['enabled'])) {
             throw new pm_Exception('This program is disabled in Supervisor Manager.');
@@ -184,10 +205,7 @@ class IndexController extends pm_Controller_Action
     public function logsAction()
     {
         $domainId = $this->currentDomainId();
-        $program = $this->store->getVisible($this->_request->getParam('id'));
-        if ($domainId !== null && $domainId !== '' && !$this->store->belongsToDomainContext($program, $domainId)) {
-            throw new pm_Exception('Program does not belong to the selected domain.');
-        }
+        $program = $this->getProgramForAction($this->_request->getParam('id'), SupervisorManager_Permissions::LOGS);
         $lines = min(500, max(20, (int) $this->_request->getParam('lines', 120)));
 
         $this->view->program = $program;
@@ -209,10 +227,7 @@ class IndexController extends pm_Controller_Action
         $this->_helper->viewRenderer->setNoRender(true);
 
         $domainId = $this->currentDomainId();
-        $program = $this->store->getVisible($this->_request->getParam('id'));
-        if ($domainId !== null && $domainId !== '' && !$this->store->belongsToDomainContext($program, $domainId)) {
-            throw new pm_Exception('Program does not belong to the selected domain.');
-        }
+        $program = $this->getProgramForAction($this->_request->getParam('id'), SupervisorManager_Permissions::LOGS);
         $lines = min(500, max(20, (int) $this->_request->getParam('lines', 120)));
 
         try {
@@ -233,6 +248,18 @@ class IndexController extends pm_Controller_Action
         $this->getResponse()
             ->setHeader('Content-Type', 'application/json')
             ->setBody(json_encode($payload));
+    }
+
+    public function domainAction()
+    {
+        $domainId = $this->currentDomainId();
+        if ($domainId === null || $domainId === '') {
+            return $this->redirectWithError('Unable to detect the selected domain. Open Supervisor from the domain card again.');
+        }
+
+        $this->_helper->viewRenderer->setNoRender(true);
+        $this->_helper->layout()->disableLayout();
+        $this->getResponse()->setRedirect(pm_Context::getBaseUrl() . 'index.php/index/index?site_id=' . urlencode($domainId));
     }
 
     public function reloadAction()
@@ -279,9 +306,124 @@ class IndexController extends pm_Controller_Action
 
     private function requireAdmin()
     {
-        if (!pm_Session::getClient()->isAdmin()) {
+        if (!$this->currentClientIsAdmin()) {
             throw new pm_Exception('Permission denied.');
         }
+    }
+
+    private function currentClientIsAdmin()
+    {
+        return SupervisorManager_Permissions::currentClient()->isAdmin();
+    }
+
+    private function requireIndexAccess($domainId)
+    {
+        $error = $this->indexAccessError($domainId);
+        if ($error !== null) {
+            throw new pm_Exception($error);
+        }
+    }
+
+    private function indexAccessError($domainId)
+    {
+        if ($this->currentClientIsAdmin()) {
+            return null;
+        }
+
+        if ($domainId !== null && $domainId !== '') {
+            return SupervisorManager_Permissions::can(SupervisorManager_Permissions::ACCESS, $domainId)
+                ? null
+                : 'Supervisor Manager is not enabled for this domain. Enable the Supervisor Manager permissions and sync the subscription.';
+        }
+
+        return SupervisorManager_Permissions::canAny(SupervisorManager_Permissions::ACCESS)
+            ? null
+            : 'Supervisor Manager is not enabled for this account. Enable the Supervisor Manager permissions and sync the subscription.';
+    }
+
+    private function canCreate($domainId)
+    {
+        if ($this->currentClientIsAdmin()) {
+            return true;
+        }
+
+        if ($domainId !== null && $domainId !== '') {
+            return SupervisorManager_Permissions::can(SupervisorManager_Permissions::MANAGE, $domainId)
+                && SupervisorManager_Permissions::hasCapacity($domainId, $this->store->countForDomain($domainId));
+        }
+
+        foreach (SupervisorManager_Permissions::filterDomains($this->store->domains(), SupervisorManager_Permissions::MANAGE) as $id => $name) {
+            if (SupervisorManager_Permissions::hasCapacity($id, $this->store->countForDomain($id))) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function creatableDomains()
+    {
+        $domains = SupervisorManager_Permissions::filterDomains(
+            $this->store->domains(),
+            SupervisorManager_Permissions::MANAGE
+        );
+
+        if ($this->currentClientIsAdmin()) {
+            return $domains;
+        }
+
+        $creatable = array();
+        foreach ($domains as $id => $name) {
+            if (SupervisorManager_Permissions::hasCapacity($id, $this->store->countForDomain($id))) {
+                $creatable[$id] = $name;
+            }
+        }
+
+        return $creatable;
+    }
+
+    private function programPermissions(array $programs)
+    {
+        $permissions = array();
+        foreach ($programs as $program) {
+            $permissions[$program['id']] = array(
+                'control' => SupervisorManager_Permissions::can(SupervisorManager_Permissions::CONTROL, $program['domain_id']),
+                'logs' => SupervisorManager_Permissions::can(SupervisorManager_Permissions::LOGS, $program['domain_id']),
+                'manage' => SupervisorManager_Permissions::can(SupervisorManager_Permissions::MANAGE, $program['domain_id']),
+            );
+        }
+
+        return $permissions;
+    }
+
+    private function getProgramForAction($id, $permission)
+    {
+        $program = $this->currentClientIsAdmin() ? $this->store->get($id) : $this->store->getVisible($id);
+        $this->requireProgramInCurrentDomain($program);
+        SupervisorManager_Permissions::assertProgram($program, $permission);
+
+        return $program;
+    }
+
+    private function assertProgramCapacity(array $data, $id, $existingProgram)
+    {
+        $domainId = (int) $data['domain_id'];
+
+        if ($existingProgram !== null && (int) $existingProgram['domain_id'] === $domainId) {
+            return;
+        }
+
+        if ($id === null || $id === '') {
+            $duplicateId = $this->store->findIdByDomainAndName($domainId, $data['name']);
+            if ($duplicateId !== null) {
+                return;
+            }
+        }
+
+        SupervisorManager_Permissions::assertProgramLimit(
+            $domainId,
+            $this->store->countForDomain($domainId, $id ?: null)
+        );
     }
 
     private function requirePost()
@@ -386,23 +528,69 @@ class IndexController extends pm_Controller_Action
 
     private function currentDomainId()
     {
-        foreach (array('site_id', 'dom_id') as $key) {
-            $value = $this->_request->getParam($key);
-            if ($value !== null && $value !== '') {
-                return (int) $value;
-            }
+        $siteId = $this->requestValue('site_id');
+        if ($siteId !== null && $siteId !== '') {
+            return $this->normalizeDomainId($siteId);
         }
 
         if (!$this->_request->isPost()) {
-            $value = $this->_request->getParam('domain_id');
-            if ($value !== null && $value !== '') {
-                return (int) $value;
+            $domainId = $this->requestValue('domain_id');
+            if ($domainId !== null && $domainId !== '') {
+                return $this->normalizeDomainId($domainId);
             }
         }
 
-        $value = $this->_request->getPost('context_domain_id');
-        if ($value !== null && $value !== '') {
-            return (int) $value;
+        $contextDomainId = $this->_request->getPost('context_domain_id');
+        if ($contextDomainId !== null && $contextDomainId !== '') {
+            return $this->normalizeDomainId($contextDomainId);
+        }
+
+        $domId = $this->requestValue('dom_id');
+        if ($domId !== null && $domId !== '') {
+            return $this->resolveSubscriptionDomainId($domId);
+        }
+
+        return null;
+    }
+
+    private function requestValue($name)
+    {
+        $value = $this->_request->getParam($name);
+        return $value !== null && $value !== '' ? $value : null;
+    }
+
+    private function normalizeDomainId($domainId)
+    {
+        try {
+            $domain = new pm_Domain((int) $domainId);
+            return (int) $domain->getId();
+        } catch (Exception $e) {
+            return null;
+        }
+    }
+
+    private function resolveSubscriptionDomainId($subscriptionId)
+    {
+        $directDomainId = $this->normalizeDomainId($subscriptionId);
+        if ($directDomainId !== null) {
+            return $directDomainId;
+        }
+
+        try {
+            foreach (pm_Domain::getAllDomains(false) as $domain) {
+                if (!$domain->hasHosting()) {
+                    continue;
+                }
+                foreach (array('webspace_id', 'parentDomainId') as $property) {
+                    try {
+                        if ((int) $domain->getProperty($property) === (int) $subscriptionId) {
+                            return (int) $domain->getId();
+                        }
+                    } catch (Exception $e) {
+                    }
+                }
+            }
+        } catch (Exception $e) {
         }
 
         return null;
@@ -423,21 +611,12 @@ class IndexController extends pm_Controller_Action
             return '';
         }
 
-        return '?' . $this->domainParamName() . '=' . urlencode($domainId);
+        return '?site_id=' . urlencode($domainId);
     }
 
     private function domainParamName()
     {
-        $postParam = $this->_request->getPost('context_domain_param');
-        if ($postParam === 'site_id') {
-            return 'site_id';
-        }
-
-        if ($this->_request->getParam('site_id') !== null && $this->_request->getParam('site_id') !== '') {
-            return 'site_id';
-        }
-
-        return 'dom_id';
+        return 'site_id';
     }
 
     private function domainName($domainId)

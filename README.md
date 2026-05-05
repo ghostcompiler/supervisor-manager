@@ -99,13 +99,13 @@ Supported install detection includes:
 Build the extension ZIP:
 
 ```sh
-zip -r supervisor-manager-1.0.1.zip meta.xml DESCRIPTION.md CHANGES.md README.md htdocs plib sbin
+zip -r supervisor-manager-1.0.3.zip meta.xml DESCRIPTION.md CHANGES.md README.md htdocs plib sbin
 ```
 
 Install through Plesk CLI:
 
 ```sh
-plesk bin extension --install supervisor-manager-1.0.1.zip
+plesk bin extension --install supervisor-manager-1.0.3.zip
 ```
 
 Or install through Plesk UI:
@@ -113,12 +113,24 @@ Or install through Plesk UI:
 1. Open **Plesk Admin**.
 2. Go to **Extensions**.
 3. Click **Upload Extension**.
-4. Upload `supervisor-manager-1.0.1.zip`.
+4. Upload `supervisor-manager-1.0.3.zip`.
 5. Open **Supervisor** from the Plesk sidebar.
+
+## Upgrading to 1.0.3
+
+Version 1.0.3 fixes customer and reseller access when Supervisor Manager permissions are enabled in a service plan but Plesk has not exposed the custom permission values to the current session yet.
+
+After installing the upgrade:
+
+1. Open the affected service plan or reseller plan.
+2. Confirm the Supervisor Manager permissions are enabled.
+3. Confirm **Maximum Supervisor programs** is not `0` for subscriptions that should create programs.
+4. Sync existing subscriptions if Plesk marks them as customized or out of sync.
+5. Refresh the customer or reseller Supervisor page.
 
 ## How It Works
 
-When an admin saves a program, the extension:
+When an authorized user saves a program, the extension:
 
 1. Validates the selected domain.
 2. Locks the project root to the selected domain area.
@@ -200,9 +212,42 @@ Privileged helper:
 
 - Admins can create, edit, delete, and regenerate all programs.
 - Customers and resellers can only see programs assigned to domains they can access.
+- Customer and reseller access is controlled by Plesk service plan permissions.
+- If Plesk delays exposing custom access/manage permission values after a plan change, a non-zero **Maximum Supervisor programs** limit is treated as a guarded activation fallback for domains the user already owns or can access.
 - Project roots are locked to the selected domain area.
 - Users cannot use `../` style path escapes to reach another domain.
 - Server-level writes are performed through the Plesk `sbin` helper.
+- The `sbin` helper revalidates config paths, log paths, process users, and allowed project roots before touching server files.
+- Managed commands run as the selected domain system user. Only grant **Manage Supervisor programs** to users who are trusted to run commands for that subscription.
+
+## Service Plan Access
+
+Supervisor Manager adds permissions to Plesk service plans and subscriptions. Keep them disabled by default, then enable only what each reseller or customer should be allowed to do.
+
+Available permissions:
+
+- **Supervisor Manager access**: allows the user to open the extension and view assigned programs.
+- **Manage Supervisor programs**: allows creating, editing, deleting, and regenerating configs for enabled domains.
+- **Control Supervisor programs**: allows start, stop, and restart actions.
+- **View Supervisor logs**: allows opening the live log preview.
+
+Available limit:
+
+- **Maximum Supervisor programs**: caps how many programs can be created per subscription. Use `0` to prevent customer-created programs, a positive number for a fixed cap, or `-1` for unlimited.
+
+Avoid unlimited process counts for shared-hosting customers unless they are trusted. Background programs can consume CPU, RAM, and ports just like commands run over SSH.
+
+Access is checked in three layers:
+
+1. The logged-in user must have access to the Plesk domain.
+2. The domain subscription must have the matching Supervisor Manager permission enabled.
+3. The posted program must belong to that exact domain ID, not a parent domain or a similar subdomain.
+
+After changing an existing service plan, sync the affected subscriptions in Plesk. Customized or locked subscriptions may keep their old permission values until they are synced or adjusted directly.
+
+The extension always registers its Plesk sidebar and domain buttons so service plan changes can appear without waiting for a new domain event. Security is still enforced in the controller after the button is clicked.
+
+Domain buttons are normalized to `site_id`, because Plesk context parameters can include `dom_id` for the subscription/webspace and `site_id` for the exact domain. Supervisor Manager uses the exact domain ID for filtering and actions.
 
 ## Live Logs
 
@@ -308,13 +353,13 @@ find . -name '*.php' -o -name '*.phtml' | sort | xargs -n1 php -l
 Package:
 
 ```sh
-COPYFILE_DISABLE=1 zip -r supervisor-manager-1.0.1.zip meta.xml DESCRIPTION.md CHANGES.md README.md htdocs plib sbin
+COPYFILE_DISABLE=1 zip -r supervisor-manager-1.0.3.zip meta.xml DESCRIPTION.md CHANGES.md README.md htdocs plib sbin
 ```
 
 Install locally on Plesk:
 
 ```sh
-plesk bin extension --install supervisor-manager-1.0.1.zip
+plesk bin extension --install supervisor-manager-1.0.3.zip
 ```
 
 ## License

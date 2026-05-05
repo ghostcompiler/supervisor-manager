@@ -1,5 +1,7 @@
 <?php
 
+require_once pm_Context::getPlibDir() . '/library/SupervisorManager/Permissions.php';
+
 class SupervisorManager_Store
 {
     const FILE_NAME = 'data/programs.json';
@@ -16,7 +18,7 @@ class SupervisorManager_Store
 
     public function visibleForCurrentUser($domainId = null)
     {
-        $client = pm_Session::getClient();
+        $client = SupervisorManager_Permissions::currentClient();
         $items = $this->all();
 
         if ($client->isAdmin()) {
@@ -25,7 +27,7 @@ class SupervisorManager_Store
 
         $visible = array();
         foreach ($items as $item) {
-            if (!$client->hasAccessToDomain((int) $item['domain_id'])) {
+            if (!SupervisorManager_Permissions::can(SupervisorManager_Permissions::ACCESS, (int) $item['domain_id'])) {
                 continue;
             }
             $visible[] = $item;
@@ -100,6 +102,33 @@ class SupervisorManager_Store
             }
         }
         $this->write($items);
+    }
+
+    public function countForDomain($domainId, $excludeId = null)
+    {
+        $count = 0;
+        foreach ($this->all() as $item) {
+            if ($excludeId !== null && $item['id'] === $excludeId) {
+                continue;
+            }
+            if ((int) $item['domain_id'] === (int) $domainId) {
+                $count++;
+            }
+        }
+
+        return $count;
+    }
+
+    public function findIdByDomainAndName($domainId, $name)
+    {
+        $name = trim($name);
+        foreach ($this->all() as $item) {
+            if ((int) $item['domain_id'] === (int) $domainId && $item['name'] === $name) {
+                return $item['id'];
+            }
+        }
+
+        return null;
     }
 
     public function domains()

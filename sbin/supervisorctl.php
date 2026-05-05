@@ -120,15 +120,20 @@ function writeProgramConfig(array $program)
 
     $command = normalizeProgramCommand(singleLine(isset($program['command']) ? $program['command'] : '', 'Command'));
     $workingDirectory = singleLine(isset($program['working_directory']) ? $program['working_directory'] : '/', 'Working directory');
-    $user = singleLine(isset($program['process_user']) ? $program['process_user'] : 'root', 'Process user');
+    $user = normalizeProcessUser(isset($program['process_user']) ? $program['process_user'] : '');
     $configPath = configPathForProgram($program);
     $logDir = '/var/log/supervisor/plesk';
+    $allowedRoots = normalizeAllowedRoots(isset($program['allowed_roots']) ? $program['allowed_roots'] : array());
 
     if (!is_dir($workingDirectory)) {
         fwrite(STDERR, "Project root does not exist: {$workingDirectory}\n");
         exit(2);
     }
-    if (!empty($program['allowed_roots']) && !isPathInsideAnyRoot($workingDirectory, $program['allowed_roots'])) {
+    if (empty($allowedRoots)) {
+        fwrite(STDERR, "No valid Plesk domain roots were provided for this program.\n");
+        exit(2);
+    }
+    if (!isPathInsideAnyRoot($workingDirectory, $allowedRoots)) {
         fwrite(STDERR, "Project root is outside the selected domain area: {$workingDirectory}\n");
         exit(2);
     }
@@ -149,6 +154,7 @@ function writeProgramConfig(array $program)
     }
 
     $logPath = logPathForProgram($program, $name);
+    ensureSafeTargetFile($configPath, 'config');
     $autostart = !empty($program['autostart']) ? 'true' : 'false';
     $autorestart = !empty($program['autorestart']) ? 'true' : 'false';
     $environmentPath = buildEnvironmentPath();
@@ -178,11 +184,8 @@ function writeProgramConfig(array $program)
 
 function deleteProgramConfig($config)
 {
-    $config = trim($config);
-    if ($config === '' || strpos($config, '/etc/') !== 0 || strpos($config, '..') !== false) {
-        fwrite(STDERR, "Invalid config path.\n");
-        exit(2);
-    }
+    $config = validateConfigPath($config);
+    ensureSafeTargetFile($config, 'config');
     if (file_exists($config)) {
         unlink($config);
         echo "Deleted {$config}\n";
@@ -203,12 +206,8 @@ function decodePayload($payload)
 
 function tailFile($file, $lines)
 {
-    $file = trim($file);
+    $file = validateLogPath($file);
     $lines = min(500, max(20, (int) $lines));
-    if ($file === '' || strpos($file, '/var/log/supervisor/plesk/') !== 0 || strpos($file, '..') !== false) {
-        fwrite(STDERR, "Invalid log file path.\n");
-        exit(2);
-    }
     if (!file_exists($file)) {
         echo "Log file does not exist yet: {$file}\nStart or restart the process, then refresh logs.\n";
         return;
@@ -237,6 +236,40 @@ function isPathInsideAnyRoot($path, array $roots)
     }
 
     return false;
+}
+
+function isPathInsideRoot($path, $root)
+{
+    $path = rtrim($path, '/');
+    $root = rtrim($root, '/');
+
+    return $path === $root || strpos($path . '/', $root . '/') === 0;
+}
+
+function pleskVhostBaseDirs()
+{
+    $dirs = array('/var/www/vhosts');
+    if (is_readable('/etc/psa/psa.conf')) {
+        foreach (file('/etc/psa/psa.conf') as $line) {
+            $line = trim($line);
+            if ($line === '' || $line[0] === '#') {
+                continue;
+            }
+            if (preg_match('/^HTTPD_VHOSTS_D\s+(.+)$/', $line, $matches)) {
+                $dirs[] = trim($matches[1]);
+            }
+        }
+    }
+
+    $realDirs = array();
+    foreach ($dirs as $dir) {
+        $realDir = realpath($dir);
+        if ($realDir !== false && is_dir($realDir)) {
+            $realDirs[] = rtrim($realDir, '/');
+        }
+    }
+
+    return array_values(array_unique($realDirs));
 }
 
 function isValidProgramName($program)
@@ -303,11 +336,11 @@ function findNodeDirectories()
 function logPathForProgram(array $program, $name)
 {
     if (!empty($program['log_path'])) {
-        return $program['log_path'];
+        return validateLogPath($program['log_path']);
     }
 
     $safeLogName = preg_replace('/[^A-Za-z0-9_.-]+/', '-', str_replace(':', '-', $name));
-    return '/var/log/supervisor/plesk/' . $safeLogName . '.log';
+    return validateLogPath('/var/log/supervisor/plesk/' . $safeLogName . '.log');
 }
 
 function findBestPhpBinary()
@@ -336,12 +369,107 @@ function findBestPhpBinary()
 function configPathForProgram(array $program)
 {
     if (!empty($program['config_path'])) {
-        return $program['config_path'];
+        return validateConfigPath($program['config_path']);
     }
 
     $domain = isset($program['domain_name']) ? $program['domain_name'] : 'domain';
     $safeName = preg_replace('/[^A-Za-z0-9_.-]+/', '-', $domain . '-' . str_replace(':', '-', $program['name']));
-    return supervisorConfigDir() . '/plesk-' . $safeName . '.conf';
+    return validateConfigPath(supervisorConfigDir() . '/plesk-' . $safeName . '.conf');
+}
+
+function validateConfigPath($path)
+{
+    $path = singleLine($path, 'Config path');
+    $directory = rtrim(dirname($path), '/');
+    $file = basename($path);
+
+    if (!in_array($directory, allowedSupervisorConfigDirs(), true) || !preg_match('/^plesk-[A-Za-z0-9_.-]+\.conf$/', $file)) {
+        fwrite(STDERR, "Invalid config path.\n");
+        exit(2);
+    }
+
+    return $directory . '/' . $file;
+}
+
+function validateLogPath($path)
+{
+    $path = singleLine($path, 'Log path');
+    $directory = rtrim(dirname($path), '/');
+    $file = basename($path);
+
+    if ($directory !== '/var/log/supervisor/plesk' || !preg_match('/^[A-Za-z0-9_.-]+\.log$/', $file)) {
+        fwrite(STDERR, "Invalid log file path.\n");
+        exit(2);
+    }
+
+    $path = $directory . '/' . $file;
+    ensureSafeTargetFile($path, 'log');
+    if (file_exists($path)) {
+        $realPath = realpath($path);
+        $realDirectory = realpath($directory);
+        if ($realPath === false || $realDirectory === false || !isPathInsideRoot($realPath, $realDirectory)) {
+            fwrite(STDERR, "Invalid log file path.\n");
+            exit(2);
+        }
+    }
+
+    return $path;
+}
+
+function normalizeProcessUser($user)
+{
+    $user = singleLine($user, 'Process user');
+    if ($user === 'root' || !preg_match('/^[A-Za-z_][A-Za-z0-9_.-]*[$]?$/', $user)) {
+        fwrite(STDERR, "Invalid process user.\n");
+        exit(2);
+    }
+    if (function_exists('posix_getpwnam') && posix_getpwnam($user) === false) {
+        fwrite(STDERR, "Process user does not exist.\n");
+        exit(2);
+    }
+
+    return $user;
+}
+
+function normalizeAllowedRoots($roots)
+{
+    if (!is_array($roots)) {
+        return array();
+    }
+
+    $valid = array();
+    foreach ($roots as $root) {
+        $root = trim((string) $root);
+        if ($root === '' || preg_match('/[\r\n]/', $root)) {
+            continue;
+        }
+        $realRoot = realpath($root);
+        if ($realRoot === false || !is_dir($realRoot)) {
+            continue;
+        }
+        if (!isPathInsideAnyRoot($realRoot, pleskVhostBaseDirs())) {
+            continue;
+        }
+        $valid[] = rtrim($realRoot, '/');
+    }
+
+    return array_values(array_unique($valid));
+}
+
+function ensureSafeTargetFile($path, $label)
+{
+    if (is_link($path) || !is_file($path)) {
+        if (!file_exists($path) && !is_link($path)) {
+            return;
+        }
+        fwrite(STDERR, "Invalid {$label} file path.\n");
+        exit(2);
+    }
+}
+
+function allowedSupervisorConfigDirs()
+{
+    return array('/etc/supervisor/conf.d', '/etc/supervisord.d');
 }
 
 function findSupervisorctl($required)
