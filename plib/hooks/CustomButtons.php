@@ -1,5 +1,7 @@
 <?php
 
+require_once pm_Context::getPlibDir() . '/library/SupervisorManager/Permissions.php';
+
 class Modules_SupervisorManager_CustomButtons extends pm_Hook_CustomButtons
 {
     public function getButtons()
@@ -7,27 +9,38 @@ class Modules_SupervisorManager_CustomButtons extends pm_Hook_CustomButtons
         $icon = pm_Context::getBaseUrl() . 'images/icon.svg';
         $link = pm_Context::getBaseUrl() . 'index.php/index/index';
         $domainLink = pm_Context::getBaseUrl() . 'index.php/index/domain';
+        $isAdmin = SupervisorManager_Permissions::isAdmin();
+        $hasAccess = $isAdmin || SupervisorManager_Permissions::canAny(SupervisorManager_Permissions::ACCESS);
 
         $buttons = array();
-        $buttons[] = array(
-            'place' => self::PLACE_ADMIN_NAVIGATION,
-            'section' => self::SECTION_NAV_SERVER_MANAGEMENT,
-            'title' => 'Supervisor',
-            'description' => 'Manage Supervisor programs',
-            'icon' => $icon,
-            'link' => $link,
-            'newWindow' => false,
-        );
+        if ($isAdmin) {
+            $buttons[] = array(
+                'place' => self::PLACE_ADMIN_NAVIGATION,
+                'section' => self::SECTION_NAV_SERVER_MANAGEMENT,
+                'title' => 'Supervisor',
+                'description' => 'Manage Supervisor programs',
+                'icon' => $icon,
+                'link' => $link,
+                'newWindow' => false,
+            );
+        }
 
-        $buttons[] = array(
-            'place' => self::PLACE_RESELLER_NAVIGATION,
-            'section' => self::SECTION_NAV_ADDITIONAL,
-            'title' => 'Supervisor',
-            'description' => 'Manage assigned Supervisor programs',
-            'icon' => $icon,
-            'link' => $link,
-            'newWindow' => false,
-        );
+        if (!$hasAccess) {
+            return $buttons;
+        }
+
+        if (!$isAdmin) {
+            $buttons[] = array(
+                'place' => self::PLACE_RESELLER_NAVIGATION,
+                'section' => self::SECTION_NAV_ADDITIONAL,
+                'title' => 'Supervisor',
+                'description' => 'Manage assigned Supervisor programs',
+                'icon' => $icon,
+                'link' => $link,
+                'newWindow' => false,
+            );
+        }
+
         $buttons[] = array(
             'place' => self::PLACE_CUSTOMER_HOME,
             'title' => 'Supervisor',

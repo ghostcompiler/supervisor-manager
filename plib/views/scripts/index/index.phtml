@@ -5,38 +5,41 @@
     $infoQuery = empty($domainQuery) ? '?info=1' : $domainQuery . '&info=1';
     $extensionInfo = !empty($this->extensionInfo) ? $this->extensionInfo : array();
     $supervisorInstalled = !empty($this->diagnostics['installed']);
+    $hasAccess = !empty($this->hasAccess);
     ?>
-    <div class="sm-commandbar">
-        <div class="sm-toolbar">
-            <?php if (!$supervisorInstalled): ?>
-                <?php if (!empty($this->canInstall)): ?>
-                    <form method="post" action="<?php echo $this->escape(pm_Context::getActionUrl('index', 'install')); ?>" onsubmit="return confirm('Install Supervisor on this server now?');">
-                        <?php if (!empty($this->domainContext)): ?>
-                            <input type="hidden" name="context_domain_id" value="<?php echo (int) $this->domainId; ?>">
-                            <input type="hidden" name="context_domain_param" value="<?php echo $this->escape($domainParam); ?>">
-                        <?php endif; ?>
-                        <button class="btn btn-primary" type="submit">Install</button>
-                    </form>
+    <?php if ($hasAccess || !empty($this->isAdmin)): ?>
+        <div class="sm-commandbar">
+            <div class="sm-toolbar">
+                <?php if (!$supervisorInstalled): ?>
+                    <?php if (!empty($this->canInstall)): ?>
+                        <form method="post" action="<?php echo $this->escape(pm_Context::getActionUrl('index', 'install')); ?>" onsubmit="return confirm('Install Supervisor on this server now?');">
+                            <?php if (!empty($this->domainContext)): ?>
+                                <input type="hidden" name="context_domain_id" value="<?php echo (int) $this->domainId; ?>">
+                                <input type="hidden" name="context_domain_param" value="<?php echo $this->escape($domainParam); ?>">
+                            <?php endif; ?>
+                            <button class="btn btn-primary" type="submit">Install</button>
+                        </form>
+                    <?php endif; ?>
+                    <a class="btn" href="<?php echo $this->escape(pm_Context::getActionUrl('index', 'index') . $infoQuery . '#supervisor-info'); ?>">Info</a>
+                <?php else: ?>
+                    <?php if (!empty($this->canCreate)): ?>
+                        <a class="btn" href="<?php echo $this->escape(pm_Context::getActionUrl('index', 'add') . $domainQuery); ?>">Add Program</a>
+                    <?php endif; ?>
+                    <?php if (!empty($this->canReread)): ?>
+                        <form method="post" action="<?php echo $this->escape(pm_Context::getActionUrl('index', 'reload')); ?>">
+                            <?php if (!empty($this->domainContext)): ?>
+                                <input type="hidden" name="context_domain_id" value="<?php echo (int) $this->domainId; ?>">
+                                <input type="hidden" name="context_domain_param" value="<?php echo $this->escape($domainParam); ?>">
+                            <?php endif; ?>
+                            <button class="btn" type="submit">Reread</button>
+                        </form>
+                    <?php endif; ?>
+                    <a class="btn" href="<?php echo $this->escape(pm_Context::getActionUrl('index', 'index') . $infoQuery . '#supervisor-info'); ?>">Info</a>
+                    <a class="btn" href="<?php echo $this->escape(pm_Context::getActionUrl('index', 'index') . $domainQuery); ?>">Refresh</a>
                 <?php endif; ?>
-                <a class="btn" href="<?php echo $this->escape(pm_Context::getActionUrl('index', 'index') . $infoQuery . '#supervisor-info'); ?>">Info</a>
-            <?php else: ?>
-                <?php if (!empty($this->canCreate)): ?>
-                    <a class="btn" href="<?php echo $this->escape(pm_Context::getActionUrl('index', 'add') . $domainQuery); ?>">Add Program</a>
-                <?php endif; ?>
-                <?php if (!empty($this->canReread)): ?>
-                    <form method="post" action="<?php echo $this->escape(pm_Context::getActionUrl('index', 'reload')); ?>">
-                        <?php if (!empty($this->domainContext)): ?>
-                            <input type="hidden" name="context_domain_id" value="<?php echo (int) $this->domainId; ?>">
-                            <input type="hidden" name="context_domain_param" value="<?php echo $this->escape($domainParam); ?>">
-                        <?php endif; ?>
-                        <button class="btn" type="submit">Reread</button>
-                    </form>
-                <?php endif; ?>
-                <a class="btn" href="<?php echo $this->escape(pm_Context::getActionUrl('index', 'index') . $infoQuery . '#supervisor-info'); ?>">Info</a>
-                <a class="btn" href="<?php echo $this->escape(pm_Context::getActionUrl('index', 'index') . $domainQuery); ?>">Refresh</a>
-            <?php endif; ?>
+            </div>
         </div>
-    </div>
+    <?php endif; ?>
 
 <?php if (!empty($this->notice)): ?>
     <div class="sm-message sm-message-info"><?php echo $this->escape($this->notice); ?></div>
@@ -166,7 +169,8 @@
         <?php endif; ?>
     <?php endif; ?>
 
-    <?php if (!$supervisorInstalled): ?>
+    <?php if (!$hasAccess && empty($this->isAdmin)): ?>
+    <?php elseif (!$supervisorInstalled): ?>
     <?php elseif (empty($this->programs)): ?>
         <div class="sm-empty">
             <h3>No Supervisor programs assigned</h3>

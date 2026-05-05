@@ -50,7 +50,8 @@ class IndexController extends pm_Controller_Action
         $this->view->diagnostics = $this->safeDiagnostics();
         $flash = $this->pullFlash();
         $this->view->notice = isset($flash['notice']) ? $flash['notice'] : null;
-        $this->view->error = $accessError ?: (isset($flash['error']) ? $flash['error'] : null);
+        $this->view->hasAccess = $accessError === null;
+        $this->view->error = $accessError === null ? (isset($flash['error']) ? $flash['error'] : null) : null;
         $this->view->isAdmin = $this->currentClientIsAdmin();
         $this->view->canCreate = $this->canCreate($domainId);
         $this->view->canReread = $this->currentClientIsAdmin();

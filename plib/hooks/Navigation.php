@@ -1,9 +1,18 @@
 <?php
 
+require_once pm_Context::getPlibDir() . '/library/SupervisorManager/Permissions.php';
+
 class Modules_SupervisorManager_Navigation extends pm_Hook_Navigation
 {
     public function getNavigation()
     {
+        if (
+            !SupervisorManager_Permissions::isAdmin() &&
+            !SupervisorManager_Permissions::canAny(SupervisorManager_Permissions::ACCESS)
+        ) {
+            return array();
+        }
+
         return array(
             array(
                 'controller' => 'index',

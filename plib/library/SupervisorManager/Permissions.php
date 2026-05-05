@@ -42,7 +42,7 @@ class SupervisorManager_Permissions
 
     public static function canAny($permission)
     {
-        if (self::currentClient()->isAdmin()) {
+        if (self::isAdmin()) {
             return true;
         }
 
@@ -56,6 +56,16 @@ class SupervisorManager_Permissions
         }
 
         return false;
+    }
+
+    public static function isAdmin()
+    {
+        try {
+            $client = self::currentClient();
+            return $client && method_exists($client, 'isAdmin') && $client->isAdmin();
+        } catch (Exception $e) {
+            return false;
+        }
     }
 
     public static function filterDomains(array $domains, $permission)

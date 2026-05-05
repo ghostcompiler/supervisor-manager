@@ -1,3 +1,8 @@
+# 1.0.2
+
+- Hide customer and reseller navigation when Supervisor Manager access is not enabled for any assigned domain.
+- Suppress the disabled-account warning and empty-state panel for accounts without Supervisor Manager access.
+
 # 1.0.1
 
 - Hardened status messages so success and error banners only come from server-side flash state, not URL parameters.
