@@ -42,19 +42,16 @@ It is built for hosting panels where admins need to run background commands for 
 
 ## Screenshots
 
-> Drop the screenshots into `docs/screenshots/` with the filenames below.
 
-<p align="center">
   <a href="docs/screenshots/dashboard.png">
-    <img src="docs/screenshots/dashboard.png" alt="Supervisor Manager dashboard" width="30%">
+    <img src="docs/screenshots/dashboard.png" alt="Supervisor Manager dashboard">
   </a>
   <a href="docs/screenshots/add-program.png">
-    <img src="docs/screenshots/add-program.png" alt="Add Supervisor program" width="30%">
+    <img src="docs/screenshots/add-program.png" alt="Add Supervisor program">
   </a>
   <a href="docs/screenshots/live-logs.png">
-    <img src="docs/screenshots/live-logs.png" alt="Live log preview" width="30%">
+    <img src="docs/screenshots/live-logs.png" alt="Live log preview">
   </a>
-</p>
 
 <details>
 <summary>Screenshot Slider</summary>
