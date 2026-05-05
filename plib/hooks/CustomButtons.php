@@ -7,7 +7,7 @@ class Modules_SupervisorManager_CustomButtons extends pm_Hook_CustomButtons
         $icon = pm_Context::getBaseUrl() . 'images/icon.svg';
         $link = pm_Context::getBaseUrl() . 'index.php/index/index';
 
-        return array(
+        $buttons = array(
             array(
                 'place' => self::PLACE_ADMIN_NAVIGATION,
                 'section' => self::SECTION_NAV_SERVER_MANAGEMENT,
@@ -44,5 +44,23 @@ class Modules_SupervisorManager_CustomButtons extends pm_Hook_CustomButtons
                 'contextParams' => true,
             ),
         );
+
+        if (
+            defined('pm_Hook_CustomButtons::PLACE_DOMAIN_PROPERTIES_DYNAMIC') &&
+            defined('pm_Hook_CustomButtons::SECTION_DOMAIN_PROPS_DYNAMIC_DEV_TOOLS')
+        ) {
+            $buttons[] = array(
+                'place' => constant('pm_Hook_CustomButtons::PLACE_DOMAIN_PROPERTIES_DYNAMIC'),
+                'section' => constant('pm_Hook_CustomButtons::SECTION_DOMAIN_PROPS_DYNAMIC_DEV_TOOLS'),
+                'title' => 'Supervisor',
+                'description' => 'Manage Supervisor programs',
+                'icon' => $icon,
+                'link' => $link,
+                'newWindow' => false,
+                'contextParams' => true,
+            );
+        }
+
+        return $buttons;
     }
 }

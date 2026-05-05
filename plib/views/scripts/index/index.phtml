@@ -1,18 +1,30 @@
 <div class="sm-shell">
+    <?php
+    $domainQuery = !empty($this->domainQuery) ? $this->domainQuery : '';
+    $domainParam = strpos($domainQuery, 'site_id=') !== false ? 'site_id' : 'dom_id';
+    ?>
     <div class="sm-commandbar">
         <div class="sm-toolbar">
             <?php if ($this->isAdmin): ?>
-                <a class="btn" href="<?php echo $this->escape(pm_Context::getActionUrl('index', 'add')); ?>">Add Program</a>
+                <a class="btn" href="<?php echo $this->escape(pm_Context::getActionUrl('index', 'add') . $domainQuery); ?>">Add Program</a>
                 <form method="post" action="<?php echo $this->escape(pm_Context::getActionUrl('index', 'reload')); ?>">
+                    <?php if (!empty($this->domainContext)): ?>
+                        <input type="hidden" name="context_domain_id" value="<?php echo (int) $this->domainId; ?>">
+                        <input type="hidden" name="context_domain_param" value="<?php echo $this->escape($domainParam); ?>">
+                    <?php endif; ?>
                     <button class="btn" type="submit">Reread</button>
                 </form>
                 <?php if (empty($this->diagnostics['installed'])): ?>
                     <form method="post" action="<?php echo $this->escape(pm_Context::getActionUrl('index', 'install')); ?>" onsubmit="return confirm('Install Supervisor on this server now?');">
+                        <?php if (!empty($this->domainContext)): ?>
+                            <input type="hidden" name="context_domain_id" value="<?php echo (int) $this->domainId; ?>">
+                            <input type="hidden" name="context_domain_param" value="<?php echo $this->escape($domainParam); ?>">
+                        <?php endif; ?>
                         <button class="btn" type="submit">Install</button>
                     </form>
                 <?php endif; ?>
             <?php endif; ?>
-            <a class="btn" href="<?php echo $this->escape(pm_Context::getActionUrl('index', 'index')); ?>">Refresh</a>
+            <a class="btn" href="<?php echo $this->escape(pm_Context::getActionUrl('index', 'index') . $domainQuery); ?>">Refresh</a>
         </div>
     </div>
 
@@ -30,6 +42,12 @@
                 <span>Managed Processes</span>
                 <strong><?php echo count($this->programs); ?></strong>
             </div>
+            <?php if (!empty($this->domainContext)): ?>
+                <div class="sm-summary-item">
+                    <span>Domain</span>
+                    <strong><?php echo $this->escape($this->domainName ?: ('ID ' . $this->domainId)); ?></strong>
+                </div>
+            <?php endif; ?>
             <div class="sm-summary-item">
                 <span>Supervisor</span>
                 <strong><?php echo empty($this->diagnostics['installed']) ? 'Not installed' : 'Installed'; ?></strong>
@@ -125,28 +143,48 @@
                 <div class="sm-actions">
                     <form method="post" action="<?php echo $this->escape(pm_Context::getActionUrl('index', 'action')); ?>">
                         <input type="hidden" name="id" value="<?php echo $this->escape($program['id']); ?>">
+                        <?php if (!empty($this->domainContext)): ?>
+                            <input type="hidden" name="context_domain_id" value="<?php echo (int) $this->domainId; ?>">
+                            <input type="hidden" name="context_domain_param" value="<?php echo $this->escape($domainParam); ?>">
+                        <?php endif; ?>
                         <input type="hidden" name="program_action" value="start">
                         <button class="btn" type="submit" <?php echo empty($program['enabled']) ? 'disabled' : ''; ?>>Start</button>
                     </form>
                     <form method="post" action="<?php echo $this->escape(pm_Context::getActionUrl('index', 'action')); ?>">
                         <input type="hidden" name="id" value="<?php echo $this->escape($program['id']); ?>">
+                        <?php if (!empty($this->domainContext)): ?>
+                            <input type="hidden" name="context_domain_id" value="<?php echo (int) $this->domainId; ?>">
+                            <input type="hidden" name="context_domain_param" value="<?php echo $this->escape($domainParam); ?>">
+                        <?php endif; ?>
                         <input type="hidden" name="program_action" value="stop">
                         <button class="btn" type="submit" <?php echo empty($program['enabled']) ? 'disabled' : ''; ?>>Stop</button>
                     </form>
                     <form method="post" action="<?php echo $this->escape(pm_Context::getActionUrl('index', 'action')); ?>">
                         <input type="hidden" name="id" value="<?php echo $this->escape($program['id']); ?>">
+                        <?php if (!empty($this->domainContext)): ?>
+                            <input type="hidden" name="context_domain_id" value="<?php echo (int) $this->domainId; ?>">
+                            <input type="hidden" name="context_domain_param" value="<?php echo $this->escape($domainParam); ?>">
+                        <?php endif; ?>
                         <input type="hidden" name="program_action" value="restart">
                         <button class="btn" type="submit" <?php echo empty($program['enabled']) ? 'disabled' : ''; ?>>Restart</button>
                     </form>
-                    <a class="btn" href="<?php echo $this->escape(pm_Context::getActionUrl('index', 'logs') . '?id=' . urlencode($program['id'])); ?>" target="_blank" rel="noopener noreferrer">Logs</a>
+                    <a class="btn" href="<?php echo $this->escape(pm_Context::getActionUrl('index', 'logs') . '?id=' . urlencode($program['id']) . (!empty($this->domainContext) ? '&' . ltrim($domainQuery, '?') : '')); ?>" target="_blank" rel="noopener noreferrer">Logs</a>
                     <?php if ($this->isAdmin): ?>
                         <form method="post" action="<?php echo $this->escape(pm_Context::getActionUrl('index', 'generate')); ?>">
                             <input type="hidden" name="id" value="<?php echo $this->escape($program['id']); ?>">
+                            <?php if (!empty($this->domainContext)): ?>
+                                <input type="hidden" name="context_domain_id" value="<?php echo (int) $this->domainId; ?>">
+                                <input type="hidden" name="context_domain_param" value="<?php echo $this->escape($domainParam); ?>">
+                            <?php endif; ?>
                             <button class="btn" type="submit">Generate Config</button>
                         </form>
-                        <a class="btn" href="<?php echo $this->escape(pm_Context::getActionUrl('index', 'edit') . '?id=' . urlencode($program['id'])); ?>">Edit</a>
+                        <a class="btn" href="<?php echo $this->escape(pm_Context::getActionUrl('index', 'edit') . '?id=' . urlencode($program['id']) . (!empty($this->domainContext) ? '&' . ltrim($domainQuery, '?') : '')); ?>">Edit</a>
                         <form method="post" action="<?php echo $this->escape(pm_Context::getActionUrl('index', 'delete')); ?>" onsubmit="return confirm('Remove this program assignment?');">
                             <input type="hidden" name="id" value="<?php echo $this->escape($program['id']); ?>">
+                            <?php if (!empty($this->domainContext)): ?>
+                                <input type="hidden" name="context_domain_id" value="<?php echo (int) $this->domainId; ?>">
+                                <input type="hidden" name="context_domain_param" value="<?php echo $this->escape($domainParam); ?>">
+                            <?php endif; ?>
                             <button class="btn" type="submit">Delete</button>
                         </form>
                     <?php endif; ?>

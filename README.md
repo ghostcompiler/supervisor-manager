@@ -99,13 +99,13 @@ Supported install detection includes:
 Build the extension ZIP:
 
 ```sh
-zip -r supervisor-manager-1.0.0.zip meta.xml DESCRIPTION.md CHANGES.md README.md htdocs plib sbin
+zip -r supervisor-manager-1.0.1.zip meta.xml DESCRIPTION.md CHANGES.md README.md htdocs plib sbin
 ```
 
 Install through Plesk CLI:
 
 ```sh
-plesk bin extension --install supervisor-manager-1.0.0.zip
+plesk bin extension --install supervisor-manager-1.0.1.zip
 ```
 
 Or install through Plesk UI:
@@ -113,7 +113,7 @@ Or install through Plesk UI:
 1. Open **Plesk Admin**.
 2. Go to **Extensions**.
 3. Click **Upload Extension**.
-4. Upload `supervisor-manager-1.0.0.zip`.
+4. Upload `supervisor-manager-1.0.1.zip`.
 5. Open **Supervisor** from the Plesk sidebar.
 
 ## How It Works
@@ -308,13 +308,13 @@ find . -name '*.php' -o -name '*.phtml' | sort | xargs -n1 php -l
 Package:
 
 ```sh
-COPYFILE_DISABLE=1 zip -r supervisor-manager-1.0.0.zip meta.xml DESCRIPTION.md CHANGES.md README.md htdocs plib sbin
+COPYFILE_DISABLE=1 zip -r supervisor-manager-1.0.1.zip meta.xml DESCRIPTION.md CHANGES.md README.md htdocs plib sbin
 ```
 
 Install locally on Plesk:
 
 ```sh
-plesk bin extension --install supervisor-manager-1.0.0.zip
+plesk bin extension --install supervisor-manager-1.0.1.zip
 ```
 
 ## License

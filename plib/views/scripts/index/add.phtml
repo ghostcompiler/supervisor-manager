@@ -1,7 +1,9 @@
 <?php
 $data = $this->formData;
-$action = pm_Context::getBaseUrl() . 'index.php/index/save';
-$cancel = pm_Context::getBaseUrl() . 'index.php/index/index';
+$domainQuery = !empty($this->domainQuery) ? $this->domainQuery : '';
+$domainParam = strpos($domainQuery, 'site_id=') !== false ? 'site_id' : 'dom_id';
+$action = pm_Context::getBaseUrl() . 'index.php/index/save' . $domainQuery;
+$cancel = pm_Context::getBaseUrl() . 'index.php/index/index' . $domainQuery;
 ?>
 
 <?php if (!empty($this->error)): ?>
@@ -12,6 +14,11 @@ $cancel = pm_Context::getBaseUrl() . 'index.php/index/index';
     <?php if (!empty($data['id'])): ?>
         <input type="hidden" name="id" value="<?php echo $this->escape($data['id']); ?>">
     <?php endif; ?>
+    <?php if (!empty($this->domainContext)): ?>
+        <input type="hidden" name="domain_id" value="<?php echo (int) $this->domainId; ?>">
+        <input type="hidden" name="context_domain_id" value="<?php echo (int) $this->domainId; ?>">
+        <input type="hidden" name="context_domain_param" value="<?php echo $this->escape($domainParam); ?>">
+    <?php endif; ?>
 
     <div class="sm-editor-head">
         <h1><?php echo empty($data['id']) ? 'Add Supervisor Program' : 'Edit Supervisor Program'; ?></h1>
@@ -20,31 +27,39 @@ $cancel = pm_Context::getBaseUrl() . 'index.php/index/index';
 
     <label>
         <span>Supervisor Program Name *</span>
-        <input type="text" name="name" required value="<?php echo $this->escape($data['name']); ?>" placeholder="ssr">
-        <em>Exact Supervisor process name, for example ssr or queue-worker.</em>
+        <input type="text" name="name" required value="<?php echo $this->escape($data['name']); ?>" placeholder="queue-worker">
+        <em>Exact Supervisor process name, for example queue-worker or websocket-server.</em>
     </label>
 
     <label>
         <span>Display Name</span>
-        <input type="text" name="display_name" value="<?php echo $this->escape($data['display_name']); ?>" placeholder="SSR">
+        <input type="text" name="display_name" value="<?php echo $this->escape($data['display_name']); ?>" placeholder="Queue Worker">
     </label>
 
-    <label>
-        <span>Assigned Domain *</span>
-        <select name="domain_id" required>
-            <option value="">Select domain</option>
-            <?php foreach ($this->domains as $id => $name): ?>
-                <option value="<?php echo (int) $id; ?>" <?php echo (int) $data['domain_id'] === (int) $id ? 'selected' : ''; ?>>
-                    <?php echo $this->escape($name); ?>
-                </option>
-            <?php endforeach; ?>
-        </select>
-    </label>
+    <?php if (!empty($this->domainContext)): ?>
+        <div class="sm-locked-domain">
+            <span>Assigned Domain</span>
+            <strong><?php echo $this->escape($this->domainName ?: ('ID ' . $this->domainId)); ?></strong>
+            <em>This program will be created only for this domain.</em>
+        </div>
+    <?php else: ?>
+        <label>
+            <span>Assigned Domain *</span>
+            <select name="domain_id" required>
+                <option value="">Select domain</option>
+                <?php foreach ($this->domains as $id => $name): ?>
+                    <option value="<?php echo (int) $id; ?>" <?php echo (int) $data['domain_id'] === (int) $id ? 'selected' : ''; ?>>
+                        <?php echo $this->escape($name); ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </label>
+    <?php endif; ?>
 
     <label class="sm-editor-wide">
         <span>Command *</span>
-        <textarea name="command" rows="3" required placeholder="php artisan inertia:start-ssr"><?php echo $this->escape($data['command']); ?></textarea>
-        <em>Command to run, for example php artisan queue:work or php artisan inertia:start-ssr.</em>
+        <textarea name="command" rows="3" required placeholder="php artisan queue:work"><?php echo $this->escape($data['command']); ?></textarea>
+        <em>Command to run, for example php artisan queue:work, npm run worker, or /usr/bin/python3 worker.py.</em>
     </label>
 
     <label>

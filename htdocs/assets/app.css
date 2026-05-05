@@ -45,7 +45,7 @@
 
 .sm-summary {
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 1px;
     overflow: hidden;
     margin: 0 0 18px;
@@ -352,6 +352,35 @@
 .sm-editor label {
     display: block;
     margin: 0 0 16px;
+}
+
+.sm-locked-domain {
+    max-width: 760px;
+    margin: 0 0 16px;
+    padding: 12px 14px;
+    border: 1px solid #d6dbe3;
+    border-radius: 6px;
+    background: #f8fafc;
+}
+
+.sm-locked-domain span {
+    display: block;
+    margin: 0 0 6px;
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+
+.sm-locked-domain strong {
+    display: block;
+    color: #1f2937;
+    font-size: 14px;
+}
+
+.sm-locked-domain em {
+    margin-top: 6px;
 }
 
 .sm-editor label span {

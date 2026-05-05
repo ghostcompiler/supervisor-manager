@@ -20,7 +20,7 @@ class IndexController extends pm_Controller_Action
 
     public function indexAction()
     {
-        $domainId = $this->_request->getParam('dom_id');
+        $domainId = $this->currentDomainId();
         $programs = $this->store->visibleForCurrentUser($domainId);
         $names = array();
         foreach ($programs as $program) {
@@ -38,21 +38,41 @@ class IndexController extends pm_Controller_Action
         $this->view->error = $this->_request->getParam('error') ?: (isset($flash['error']) ? $flash['error'] : null);
         $this->view->isAdmin = pm_Session::getClient()->isAdmin();
         $this->view->domainId = $domainId;
+        $this->view->domainContext = $domainId !== null && $domainId !== '';
+        $this->view->domainName = $this->domainName($domainId);
+        $this->view->domainQuery = $this->domainQuery();
     }
 
     public function addAction()
     {
         $this->requireAdmin();
-        $this->view->formData = $this->formData();
+        $domainId = $this->currentDomainId();
+        $formData = $this->formData();
+        if ($domainId !== null && $domainId !== '') {
+            $formData['domain_id'] = (int) $domainId;
+        }
+        $this->view->formData = $formData;
         $this->view->domains = $this->store->domains();
+        $this->view->domainContext = $domainId !== null && $domainId !== '';
+        $this->view->domainId = $domainId;
+        $this->view->domainName = $this->domainName($domainId);
+        $this->view->domainQuery = $this->domainQuery();
     }
 
     public function editAction()
     {
         $this->requireAdmin();
+        $domainId = $this->currentDomainId();
         $program = $this->store->get($this->_request->getParam('id'));
+        if ($domainId !== null && $domainId !== '' && !$this->store->belongsToDomainContext($program, $domainId)) {
+            throw new pm_Exception('Program does not belong to the selected domain.');
+        }
         $this->view->formData = $this->formData($program);
         $this->view->domains = $this->store->domains();
+        $this->view->domainContext = $domainId !== null && $domainId !== '';
+        $this->view->domainId = $domainId;
+        $this->view->domainName = $this->domainName($domainId);
+        $this->view->domainQuery = $this->domainQuery();
     }
 
     public function saveAction()
@@ -87,6 +107,11 @@ class IndexController extends pm_Controller_Action
             $this->view->error = $e->getMessage();
             $this->view->formData = $this->formData(array_merge($data, array('id' => $this->_request->getPost('id'))));
             $this->view->domains = $this->store->domains();
+            $domainId = $this->currentDomainId();
+            $this->view->domainContext = $domainId !== null && $domainId !== '';
+            $this->view->domainId = $domainId;
+            $this->view->domainName = $this->domainName($domainId);
+            $this->view->domainQuery = $this->domainQuery();
             $this->render('add');
         }
     }
@@ -96,6 +121,7 @@ class IndexController extends pm_Controller_Action
         $this->requireAdmin();
         $this->requirePost();
         $program = $this->store->get($this->_request->getPost('id'));
+        $this->requireProgramInCurrentDomain($program);
         try {
             $this->supervisor->deleteConfig($program);
             $this->supervisor->reload();
@@ -112,6 +138,7 @@ class IndexController extends pm_Controller_Action
         $this->requirePost();
 
         $program = $this->store->get($this->_request->getPost('id'));
+        $this->requireProgramInCurrentDomain($program);
         try {
             $this->supervisor->writeConfig($program);
             try {
@@ -132,6 +159,7 @@ class IndexController extends pm_Controller_Action
         $id = $this->_request->getPost('id');
         $action = $this->_request->getPost('program_action');
         $program = $this->store->getVisible($id);
+        $this->requireProgramInCurrentDomain($program);
 
         if (empty($program['enabled'])) {
             throw new pm_Exception('This program is disabled in Supervisor Manager.');
@@ -155,11 +183,18 @@ class IndexController extends pm_Controller_Action
 
     public function logsAction()
     {
+        $domainId = $this->currentDomainId();
         $program = $this->store->getVisible($this->_request->getParam('id'));
+        if ($domainId !== null && $domainId !== '' && !$this->store->belongsToDomainContext($program, $domainId)) {
+            throw new pm_Exception('Program does not belong to the selected domain.');
+        }
         $lines = min(500, max(20, (int) $this->_request->getParam('lines', 120)));
 
         $this->view->program = $program;
         $this->view->lines = $lines;
+        $this->view->domainContext = $domainId !== null && $domainId !== '';
+        $this->view->domainId = $domainId;
+        $this->view->domainQuery = $this->domainQuery();
 
         try {
             $this->view->log = $this->supervisor->tailLog($program, $lines);
@@ -173,7 +208,11 @@ class IndexController extends pm_Controller_Action
         $this->_helper->layout()->disableLayout();
         $this->_helper->viewRenderer->setNoRender(true);
 
+        $domainId = $this->currentDomainId();
         $program = $this->store->getVisible($this->_request->getParam('id'));
+        if ($domainId !== null && $domainId !== '' && !$this->store->belongsToDomainContext($program, $domainId)) {
+            throw new pm_Exception('Program does not belong to the selected domain.');
+        }
         $lines = min(500, max(20, (int) $this->_request->getParam('lines', 120)));
 
         try {
@@ -345,6 +384,72 @@ class IndexController extends pm_Controller_Action
         return null;
     }
 
+    private function currentDomainId()
+    {
+        foreach (array('site_id', 'dom_id') as $key) {
+            $value = $this->_request->getParam($key);
+            if ($value !== null && $value !== '') {
+                return (int) $value;
+            }
+        }
+
+        if (!$this->_request->isPost()) {
+            $value = $this->_request->getParam('domain_id');
+            if ($value !== null && $value !== '') {
+                return (int) $value;
+            }
+        }
+
+        $value = $this->_request->getPost('context_domain_id');
+        if ($value !== null && $value !== '') {
+            return (int) $value;
+        }
+
+        return null;
+    }
+
+    private function requireProgramInCurrentDomain(array $program)
+    {
+        $domainId = $this->currentDomainId();
+        if ($domainId !== null && $domainId !== '' && !$this->store->belongsToDomainContext($program, $domainId)) {
+            throw new pm_Exception('Program does not belong to the selected domain.');
+        }
+    }
+
+    private function domainQuery()
+    {
+        $domainId = $this->currentDomainId();
+        if ($domainId === null || $domainId === '') {
+            return '';
+        }
+
+        return '?' . $this->domainParamName() . '=' . urlencode($domainId);
+    }
+
+    private function domainParamName()
+    {
+        $postParam = $this->_request->getPost('context_domain_param');
+        if ($postParam === 'site_id') {
+            return 'site_id';
+        }
+
+        if ($this->_request->getParam('site_id') !== null && $this->_request->getParam('site_id') !== '') {
+            return 'site_id';
+        }
+
+        return 'dom_id';
+    }
+
+    private function domainName($domainId)
+    {
+        if ($domainId === null || $domainId === '') {
+            return null;
+        }
+
+        $domains = $this->store->domains();
+        return isset($domains[(int) $domainId]) ? $domains[(int) $domainId] : null;
+    }
+
     private function redirectWithNotice($message)
     {
         $this->pushFlash('notice', $message);
@@ -361,7 +466,7 @@ class IndexController extends pm_Controller_Action
     {
         $this->_helper->viewRenderer->setNoRender(true);
         $this->_helper->layout()->disableLayout();
-        $this->getResponse()->setRedirect(pm_Context::getBaseUrl() . 'index.php/index/index');
+        $this->getResponse()->setRedirect(pm_Context::getBaseUrl() . 'index.php/index/index' . $this->domainQuery());
     }
 
     private function shortenMessage($message)

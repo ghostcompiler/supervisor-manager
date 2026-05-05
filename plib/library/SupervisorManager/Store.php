@@ -304,12 +304,21 @@ class SupervisorManager_Store
 
         $filtered = array();
         foreach ($items as $item) {
-            if ((int) $item['domain_id'] === (int) $domainId) {
+            if ($this->belongsToDomainContext($item, $domainId)) {
                 $filtered[] = $item;
             }
         }
 
         return $filtered;
+    }
+
+    public function belongsToDomainContext(array $item, $domainId)
+    {
+        if ($domainId === null || $domainId === '') {
+            return true;
+        }
+
+        return (int) $item['domain_id'] === (int) $domainId;
     }
 
     private function read()

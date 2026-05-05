@@ -1,7 +1,9 @@
 <?php
 $id = $this->program['id'];
-$baseLogsUrl = pm_Context::getActionUrl('index', 'logs') . '?id=' . urlencode($id);
-$dataUrl = pm_Context::getBaseUrl() . 'index.php/index/log-data?id=' . urlencode($id);
+$domainQuery = !empty($this->domainQuery) ? $this->domainQuery : '';
+$domainPart = !empty($this->domainContext) ? '&' . ltrim($domainQuery, '?') : '';
+$baseLogsUrl = pm_Context::getActionUrl('index', 'logs') . '?id=' . urlencode($id) . $domainPart;
+$dataUrl = pm_Context::getBaseUrl() . 'index.php/index/log-data?id=' . urlencode($id) . $domainPart;
 ?>
 
 <div class="sm-log-page">
@@ -16,7 +18,7 @@ $dataUrl = pm_Context::getBaseUrl() . 'index.php/index/log-data?id=' . urlencode
             </p>
         </div>
         <div class="sm-log-actions">
-            <a class="btn" href="<?php echo $this->escape(pm_Context::getActionUrl('index', 'index')); ?>">Back</a>
+            <a class="btn" href="<?php echo $this->escape(pm_Context::getActionUrl('index', 'index') . $domainQuery); ?>">Back</a>
             <a class="btn" href="<?php echo $this->escape($baseLogsUrl . '&lines=120'); ?>">120</a>
             <a class="btn" href="<?php echo $this->escape($baseLogsUrl . '&lines=300'); ?>">300</a>
             <a class="btn" href="<?php echo $this->escape($baseLogsUrl . '&lines=500'); ?>">500</a>
