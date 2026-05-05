@@ -54,7 +54,6 @@ It is built for hosting panels where admins need to run background commands for 
   </a>
 
 <details>
-<summary>Screenshot Slider</summary>
 
 ### 1. Dashboard
 
