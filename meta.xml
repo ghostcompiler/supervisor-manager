@@ -5,10 +5,10 @@
   <description>Manage Supervisor programs from Plesk for administrators, resellers, and customers.</description>
   <category>server_tool</category>
   <category>client_tool</category>
-  <version>1.0.3</version>
+  <version>1.0.0</version>
   <release>1</release>
-  <vendor>Local</vendor>
-  <url>https://example.com</url>
-  <support_url>https://example.com/support</support_url>
+  <vendor>Ghost Compiler</vendor>
+  <url>https://github.com/ghostcompiler/supervisor-manager</url>
+  <support_url>https://github.com/ghostcompiler/supervisor-manager/issues</support_url>
   <plesk_min_version>17.8.0</plesk_min_version>
 </module>

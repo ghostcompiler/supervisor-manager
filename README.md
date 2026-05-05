@@ -18,6 +18,16 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/ghostcompiler/supervisor-manager/actions/workflows/ci.yml">
+    <img src="https://github.com/ghostcompiler/supervisor-manager/actions/workflows/ci.yml/badge.svg" alt="CI">
+  </a>
+  <a href="https://github.com/ghostcompiler/supervisor-manager/actions/workflows/release.yml">
+    <img src="https://github.com/ghostcompiler/supervisor-manager/actions/workflows/release.yml/badge.svg" alt="Release">
+  </a>
+  <a href="https://github.com/ghostcompiler/supervisor-manager/actions/workflows/package-latest.yml">
+    <img src="https://github.com/ghostcompiler/supervisor-manager/actions/workflows/package-latest.yml/badge.svg" alt="Latest Package">
+  </a>
+  <img src="https://img.shields.io/badge/Creator-Ghost%20Compiler-111827?style=flat-square" alt="Creator">
   <img src="https://img.shields.io/badge/Status-Production%20Ready-22C55E?style=flat-square" alt="Status">
   <img src="https://img.shields.io/badge/Access-Admin%20%7C%20Reseller%20%7C%20Customer-blue?style=flat-square" alt="Access">
   <img src="https://img.shields.io/badge/Config-/etc/supervisor/conf.d-lightgrey?style=flat-square" alt="Config Path">
@@ -30,6 +40,14 @@
 Supervisor Manager is a Plesk extension for creating and managing Supervisor programs directly from the Plesk interface.
 
 It is built for hosting panels where admins need to run background commands for individual domains while keeping customers locked to their own domain scope. It can manage PHP workers, Node workers, queue consumers, schedulers, websocket servers, custom scripts, and other long-running services.
+
+## Creator
+
+- **Name:** Ghost Compiler
+- **Email:** [hello@ghostcompiler.in](mailto:hello@ghostcompiler.in)
+- **GitHub:** [ghostcompiler/supervisor-manager](https://github.com/ghostcompiler/supervisor-manager)
+- **Profile:** [github.com/ghostcompiler](https://github.com/ghostcompiler)
+- **Logo:** [assets.ghostcompiler.in/logo.png](https://assets.ghostcompiler.in/logo.png)
 
 ## Use Cases
 
@@ -96,16 +114,31 @@ Supported install detection includes:
 
 ## Installation
 
+Install the latest runner-built package directly from GitHub:
+
+```sh
+plesk bin extension --install-url https://github.com/ghostcompiler/supervisor-manager/releases/download/latest/supervisor-manager.zip
+```
+
+This URL points to the rolling `latest` release asset. The **Package Latest** workflow rebuilds `supervisor-manager.zip` from the current `main` branch on every push and whenever it is started manually, so the install command stays stable and does not depend on a hardcoded version number.
+
+Pinned version installs are also available after publishing a versioned release:
+
+```sh
+plesk bin extension --install-url https://github.com/ghostcompiler/supervisor-manager/releases/download/v1.0.0/supervisor-manager-1.0.0.zip
+```
+
 Build the extension ZIP:
 
 ```sh
-zip -r supervisor-manager-1.0.3.zip meta.xml DESCRIPTION.md CHANGES.md README.md htdocs plib sbin
+mkdir -p build
+COPYFILE_DISABLE=1 zip -r build/supervisor-manager-1.0.0.zip meta.xml DESCRIPTION.md CHANGES.md README.md htdocs plib sbin -x '*.DS_Store' -x '__MACOSX/*'
 ```
 
 Install through Plesk CLI:
 
 ```sh
-plesk bin extension --install supervisor-manager-1.0.3.zip
+plesk bin extension --install build/supervisor-manager-1.0.0.zip
 ```
 
 Or install through Plesk UI:
@@ -113,14 +146,14 @@ Or install through Plesk UI:
 1. Open **Plesk Admin**.
 2. Go to **Extensions**.
 3. Click **Upload Extension**.
-4. Upload `supervisor-manager-1.0.3.zip`.
+4. Upload `build/supervisor-manager-1.0.0.zip`.
 5. Open **Supervisor** from the Plesk sidebar.
 
-## Upgrading to 1.0.3
+## Version 1.0.0
 
-Version 1.0.3 fixes customer and reseller access when Supervisor Manager permissions are enabled in a service plan but Plesk has not exposed the custom permission values to the current session yet.
+Version 1.0.0 is the fresh public release of Supervisor Manager. It includes scoped admin, reseller, and customer access; service plan permissions and limits; domain Dev Tools integration; config generation; process control; live logs; the Info panel; Ghost Compiler branding; and GitHub Actions packaging.
 
-After installing the upgrade:
+After installing:
 
 1. Open the affected service plan or reseller plan.
 2. Confirm the Supervisor Manager permissions are enabled.
@@ -353,15 +386,57 @@ find . -name '*.php' -o -name '*.phtml' | sort | xargs -n1 php -l
 Package:
 
 ```sh
-COPYFILE_DISABLE=1 zip -r supervisor-manager-1.0.3.zip meta.xml DESCRIPTION.md CHANGES.md README.md htdocs plib sbin
+mkdir -p build
+COPYFILE_DISABLE=1 zip -r build/supervisor-manager-1.0.0.zip meta.xml DESCRIPTION.md CHANGES.md README.md htdocs plib sbin -x '*.DS_Store' -x '__MACOSX/*'
+```
+
+## Release Automation
+
+GitHub Actions handles packaging and release assets:
+
+- `CI` runs on every push and pull request.
+- `CI` validates PHP syntax, validates `meta.xml`, builds the ZIP, tests the ZIP, and uploads it as a workflow artifact.
+- `Package Latest` runs on every push to `main` and can be started manually.
+- `Package Latest` moves the rolling `latest` tag to the current commit and uploads `supervisor-manager.zip` to that release.
+- `Release` runs when a tag like `v1.0.0` is pushed, or when started manually.
+- `Release` requires the tag version to match `meta.xml`.
+- `Release` uploads versioned assets like `supervisor-manager-1.0.0.zip` for pinned installs.
+
+Refresh the rolling latest installer from the current `main` branch:
+
+```sh
+git push origin main
+```
+
+Then install the newest runner-built package:
+
+```sh
+plesk bin extension --install-url https://github.com/ghostcompiler/supervisor-manager/releases/download/latest/supervisor-manager.zip
+```
+
+Create a release:
+
+```sh
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+After the release workflow finishes, the pinned install command works:
+
+```sh
+plesk bin extension --install-url https://github.com/ghostcompiler/supervisor-manager/releases/download/v1.0.0/supervisor-manager-1.0.0.zip
 ```
 
 Install locally on Plesk:
 
 ```sh
-plesk bin extension --install supervisor-manager-1.0.3.zip
+plesk bin extension --install build/supervisor-manager-1.0.0.zip
 ```
 
 ## License
 
 Private project. Update this section before publishing publicly.
+
+<p align="center">
+  Proudly developed by <a href="https://github.com/ghostcompiler">Ghost Compiler</a>.
+</p>

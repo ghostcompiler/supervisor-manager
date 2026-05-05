@@ -6,6 +6,8 @@ It gives administrators a central list of configured programs and allows custome
 
 Authorized users can enter the command a process should run. The extension validates the selected domain, locks the project root to that domain area, generates the Supervisor config file, reloads Supervisor, and shows the generated paths in the UI. Grant command management only to subscriptions you trust to run background commands.
 
+Created by Ghost Compiler. Contact hello@ghostcompiler.in or visit https://github.com/ghostcompiler/supervisor-manager for source, releases, and issue tracking.
+
 ## Requirements
 
 - Linux server with Plesk Obsidian or Plesk Onyx 17.8+
@@ -17,6 +19,6 @@ Authorized users can enter the command a process should run. The extension valid
 
 Administrators can add and edit all program assignments. Customers and resellers can only operate programs mapped to domains they own or can access in Plesk, and only when the matching Supervisor Manager service plan permissions are enabled.
 
-Version 1.0.3 improves customer and reseller permission detection for impersonated sessions, reseller-owned customers, and service plan changes that need subscription sync.
+Version 1.0.0 includes scoped access, service plan permissions, domain Dev Tools integration, live logs, creator metadata, in-panel installation details, and runner-built package automation.
 
 The extension enforces exact domain IDs on every action and keeps generated project roots inside the selected domain area. The privileged helper also rejects unsafe config paths, log paths, root-owned processes, and project roots outside the Plesk vhost area.

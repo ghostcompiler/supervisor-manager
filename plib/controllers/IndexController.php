@@ -8,6 +8,12 @@ class IndexController extends pm_Controller_Action
 {
     protected $_accessLevel = array('admin', 'reseller', 'client');
 
+    const CREATOR_NAME = 'Ghost Compiler';
+    const CREATOR_EMAIL = 'hello@ghostcompiler.in';
+    const CREATOR_PROFILE = 'https://github.com/ghostcompiler';
+    const GITHUB_URL = 'https://github.com/ghostcompiler/supervisor-manager';
+    const LOGO_URL = 'https://assets.ghostcompiler.in/logo.png';
+
     private $store;
     private $supervisor;
 
@@ -17,6 +23,7 @@ class IndexController extends pm_Controller_Action
         $this->store = new SupervisorManager_Store();
         $this->supervisor = new SupervisorManager_Supervisor();
         $this->view->headLink()->appendStylesheet(pm_Context::getBaseUrl() . 'assets/app.css');
+        $this->view->extensionInfo = $this->extensionInfo();
     }
 
     public function indexAction()
@@ -53,6 +60,7 @@ class IndexController extends pm_Controller_Action
         $this->view->domainContext = $domainId !== null && $domainId !== '';
         $this->view->domainName = $this->domainName($domainId);
         $this->view->domainQuery = $this->domainQuery();
+        $this->view->showInfo = $this->_request->getParam('info') === '1';
     }
 
     public function addAction()
@@ -302,6 +310,35 @@ class IndexController extends pm_Controller_Action
             'description' => isset($program['description']) ? $program['description'] : '',
             'enabled' => array_key_exists('enabled', $program) ? (int) $program['enabled'] : 1,
         );
+    }
+
+    private function extensionInfo()
+    {
+        $version = $this->moduleVersion();
+
+        return array(
+            'name' => 'Supervisor Manager',
+            'version' => $version,
+            'creator' => self::CREATOR_NAME,
+            'email' => self::CREATOR_EMAIL,
+            'profile_url' => self::CREATOR_PROFILE,
+            'github_url' => self::GITHUB_URL,
+            'logo_url' => self::LOGO_URL,
+            'install_url' => self::GITHUB_URL . '/releases/download/latest/supervisor-manager.zip',
+        );
+    }
+
+    private function moduleVersion()
+    {
+        $metaFile = dirname(pm_Context::getPlibDir()) . '/meta.xml';
+        if (is_readable($metaFile)) {
+            $meta = @simplexml_load_file($metaFile);
+            if ($meta !== false && isset($meta->version)) {
+                return (string) $meta->version;
+            }
+        }
+
+        return '1.0.0';
     }
 
     private function requireAdmin()

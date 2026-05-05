@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test-and-package:
+    name: Test and package extension
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y php-cli zip unzip
+
+      - name: Validate PHP syntax
+        run: |
+          find plib htdocs sbin \( -name '*.php' -o -name '*.phtml' \) -print0 \
+            | sort -z \
+            | xargs -0 -n1 php -l
+
+      - name: Validate extension metadata
+        run: |
+          php -r '
+          $xml = simplexml_load_file("meta.xml");
+          if (!$xml) {
+              fwrite(STDERR, "meta.xml is not valid XML\n");
+              exit(1);
+          }
+          foreach (["name", "version", "vendor"] as $field) {
+              if (trim((string) $xml->{$field}) === "") {
+                  fwrite(STDERR, "Missing meta.xml field: {$field}\n");
+                  exit(1);
+              }
+          }
+          echo "Extension: " . (string) $xml->name . " v" . (string) $xml->version . PHP_EOL;
+          '
+
+      - name: Build Plesk extension ZIP
+        run: |
+          version="$(php -r '$xml = simplexml_load_file("meta.xml"); echo trim((string) $xml->version);')"
+          asset="supervisor-manager-${version}.zip"
+          COPYFILE_DISABLE=1 zip -r "$asset" meta.xml DESCRIPTION.md CHANGES.md README.md htdocs plib sbin \
+            -x '*.DS_Store' -x '__MACOSX/*'
+          zip -T "$asset"
+          cp "$asset" supervisor-manager.zip
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: supervisor-manager-package
+          path: |
+            supervisor-manager-*.zip
+            supervisor-manager.zip
