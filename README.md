@@ -125,20 +125,20 @@ This URL points to the rolling `latest` release asset. The **Package Latest** wo
 Pinned version installs are also available after publishing a versioned release:
 
 ```sh
-plesk bin extension --install-url https://github.com/ghostcompiler/supervisor-manager/releases/download/v1.0.2/supervisor-manager-1.0.2.zip
+plesk bin extension --install-url https://github.com/ghostcompiler/supervisor-manager/releases/download/v1.0.3/supervisor-manager-1.0.3.zip
 ```
 
 Build the extension ZIP:
 
 ```sh
 mkdir -p build
-COPYFILE_DISABLE=1 zip -r build/supervisor-manager-1.0.2.zip meta.xml DESCRIPTION.md CHANGES.md README.md htdocs plib sbin -x '*.DS_Store' -x '__MACOSX/*'
+COPYFILE_DISABLE=1 zip -r build/supervisor-manager-1.0.3.zip meta.xml DESCRIPTION.md CHANGES.md README.md htdocs plib sbin -x '*.DS_Store' -x '__MACOSX/*'
 ```
 
 Install through Plesk CLI:
 
 ```sh
-plesk bin extension --install build/supervisor-manager-1.0.2.zip
+plesk bin extension --install build/supervisor-manager-1.0.3.zip
 ```
 
 Or install through Plesk UI:
@@ -146,20 +146,20 @@ Or install through Plesk UI:
 1. Open **Plesk Admin**.
 2. Go to **Extensions**.
 3. Click **Upload Extension**.
-4. Upload `build/supervisor-manager-1.0.2.zip`.
+4. Upload `build/supervisor-manager-1.0.3.zip`.
 5. Open **Supervisor** from the Plesk sidebar.
 
-## Version 1.0.2
+## Version 1.0.3
 
-Version 1.0.2 is an access-visibility release for Supervisor Manager. It hides customer and reseller navigation when Supervisor Manager is not enabled for any assigned domain, and keeps direct no-access page loads quiet instead of showing a disabled-account warning panel.
+Version 1.0.3 improves Supervisor runtime setup, domain PHP detection, and log handling. It adds service health diagnostics with a repair action, generates domain-scoped Supervisor program names, resolves `php` through the selected Plesk domain PHP handler, and adds copy/clear controls for live logs.
 
 After installing:
 
-1. Open the affected service plan or reseller plan.
-2. Confirm the Supervisor Manager permissions are enabled.
-3. Confirm **Maximum Supervisor programs** is not `0` for subscriptions that should create programs.
-4. Sync existing subscriptions if Plesk marks them as customized or out of sync.
-5. Refresh the customer or reseller Supervisor page.
+1. Open **Supervisor** from Plesk.
+2. Use **Repair Supervisor** if the service or socket needs setup.
+3. Regenerate existing program configs so domain PHP paths and scoped names are written.
+4. Restart affected programs from the extension.
+5. Use **Copy Log** or **Clear Log** from the logs page when troubleshooting.
 
 ## How It Works
 
@@ -387,7 +387,7 @@ Package:
 
 ```sh
 mkdir -p build
-COPYFILE_DISABLE=1 zip -r build/supervisor-manager-1.0.2.zip meta.xml DESCRIPTION.md CHANGES.md README.md htdocs plib sbin -x '*.DS_Store' -x '__MACOSX/*'
+COPYFILE_DISABLE=1 zip -r build/supervisor-manager-1.0.3.zip meta.xml DESCRIPTION.md CHANGES.md README.md htdocs plib sbin -x '*.DS_Store' -x '__MACOSX/*'
 ```
 
 ## Release Automation
@@ -398,9 +398,9 @@ GitHub Actions handles packaging and release assets:
 - `CI` validates PHP syntax, validates `meta.xml`, builds the ZIP, tests the ZIP, and uploads it as a workflow artifact.
 - `Package Latest` runs on every push to `main` and can be started manually.
 - `Package Latest` moves the rolling `latest` tag to the current commit and uploads `supervisor-manager.zip` to that release.
-- `Release` runs when a tag like `v1.0.2` is pushed, or when started manually.
+- `Release` runs when a tag like `v1.0.3` is pushed, or when started manually.
 - `Release` requires the tag version to match `meta.xml`.
-- `Release` uploads versioned assets like `supervisor-manager-1.0.2.zip` for pinned installs.
+- `Release` uploads versioned assets like `supervisor-manager-1.0.3.zip` for pinned installs.
 
 Refresh the rolling latest installer from the current `main` branch:
 
@@ -417,20 +417,20 @@ plesk bin extension --install-url https://github.com/ghostcompiler/supervisor-ma
 Create a release:
 
 ```sh
-git tag v1.0.2
-git push origin v1.0.2
+git tag v1.0.3
+git push origin v1.0.3
 ```
 
 After the release workflow finishes, the pinned install command works:
 
 ```sh
-plesk bin extension --install-url https://github.com/ghostcompiler/supervisor-manager/releases/download/v1.0.2/supervisor-manager-1.0.2.zip
+plesk bin extension --install-url https://github.com/ghostcompiler/supervisor-manager/releases/download/v1.0.3/supervisor-manager-1.0.3.zip
 ```
 
 Install locally on Plesk:
 
 ```sh
-plesk bin extension --install build/supervisor-manager-1.0.2.zip
+plesk bin extension --install build/supervisor-manager-1.0.3.zip
 ```
 
 ## License

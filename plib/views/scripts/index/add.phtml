@@ -59,7 +59,7 @@ $cancel = pm_Context::getBaseUrl() . 'index.php/index/index' . $domainQuery;
     <label class="sm-editor-wide">
         <span>Command *</span>
         <textarea name="command" rows="3" required placeholder="php artisan queue:work"><?php echo $this->escape($data['command']); ?></textarea>
-        <em>Command to run, for example php artisan queue:work, npm run worker, or /usr/bin/python3 worker.py.</em>
+        <em>Use a long-running process, for example php artisan queue:work, npm run worker, or /usr/bin/python3 worker.py. Version checks like php -v exit immediately.</em>
     </label>
 
     <label>

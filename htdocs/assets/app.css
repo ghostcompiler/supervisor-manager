@@ -159,6 +159,90 @@
     overflow-wrap: anywhere;
 }
 
+.sm-info-page {
+    width: 100%;
+    margin: 0;
+    color: #1f2933;
+}
+
+.sm-info-page-head {
+    display: flex;
+    gap: 18px;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin: 0 0 22px;
+    padding: 4px 0 22px;
+    border-bottom: 1px solid #d6dbe3;
+}
+
+.sm-info-page-brand {
+    display: flex;
+    gap: 18px;
+    align-items: center;
+    min-width: 0;
+}
+
+.sm-info-page-brand img {
+    flex: 0 0 auto;
+    width: 72px;
+    height: 72px;
+    object-fit: contain;
+}
+
+.sm-info-page-brand span,
+.sm-info-page-grid span {
+    display: block;
+    margin: 0 0 6px;
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+
+.sm-info-page-brand h1 {
+    margin: 0;
+    color: #0f172a;
+    font-size: 28px;
+    font-weight: 700;
+}
+
+.sm-info-page-brand p {
+    max-width: 760px;
+    margin: 6px 0 0;
+    color: #475569;
+    font-size: 15px;
+}
+
+.sm-info-page-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.sm-info-page-grid div {
+    min-width: 0;
+    padding: 14px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    background: #fff;
+}
+
+.sm-info-page-grid strong,
+.sm-info-page-grid a {
+    display: block;
+    overflow: hidden;
+    color: #1f2937;
+    font-size: 14px;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sm-info-page-grid a {
+    color: #2563eb;
+}
+
 .sm-summary {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -725,6 +809,7 @@
 
     .sm-facts,
     .sm-info-grid,
+    .sm-info-page-grid,
     .sm-install-grid,
     .sm-summary {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -733,6 +818,7 @@
 
 @media (max-width: 720px) {
     .sm-commandbar,
+    .sm-info-page-head,
     .sm-row-title,
     .sm-install-head {
         display: block;
@@ -765,8 +851,13 @@
         align-items: flex-start;
     }
 
+    .sm-info-page-brand {
+        align-items: flex-start;
+    }
+
     .sm-facts,
     .sm-info-grid,
+    .sm-info-page-grid,
     .sm-install-grid,
     .sm-summary {
         grid-template-columns: 1fr;

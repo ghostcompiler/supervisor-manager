@@ -40,7 +40,7 @@ class IndexController extends pm_Controller_Action
         $names = array();
         foreach ($programs as $program) {
             if (!empty($program['enabled'])) {
-                $names[] = $program['name'];
+                $names[] = $this->supervisorProgramName($program);
             }
         }
 
@@ -56,12 +56,23 @@ class IndexController extends pm_Controller_Action
         $this->view->canCreate = $this->canCreate($domainId);
         $this->view->canReread = $this->currentClientIsAdmin();
         $this->view->canInstall = $this->currentClientIsAdmin();
+        $this->view->canSetup = $this->currentClientIsAdmin();
         $this->view->programPermissions = $this->programPermissions($programs);
         $this->view->domainId = $domainId;
         $this->view->domainContext = $domainId !== null && $domainId !== '';
         $this->view->domainName = $this->domainName($domainId);
         $this->view->domainQuery = $this->domainQuery();
-        $this->view->showInfo = $this->_request->getParam('info') === '1';
+    }
+
+    public function infoAction()
+    {
+        $domainId = $this->currentDomainId();
+        $this->requireIndexAccess($domainId);
+
+        $this->view->domainId = $domainId;
+        $this->view->domainContext = $domainId !== null && $domainId !== '';
+        $this->view->domainName = $this->domainName($domainId);
+        $this->view->domainQuery = $this->domainQuery();
     }
 
     public function addAction()
@@ -197,11 +208,11 @@ class IndexController extends pm_Controller_Action
 
         try {
             if ($action === 'start') {
-                $this->supervisor->start($program['name']);
+                $this->supervisor->start($this->supervisorProgramName($program));
             } elseif ($action === 'stop') {
-                $this->supervisor->stop($program['name']);
+                $this->supervisor->stop($this->supervisorProgramName($program));
             } elseif ($action === 'restart') {
-                $this->supervisor->restart($program['name']);
+                $this->supervisor->restart($this->supervisorProgramName($program));
             } else {
                 throw new pm_Exception('Unsupported action.');
             }
@@ -222,6 +233,9 @@ class IndexController extends pm_Controller_Action
         $this->view->domainContext = $domainId !== null && $domainId !== '';
         $this->view->domainId = $domainId;
         $this->view->domainQuery = $this->domainQuery();
+        $flash = $this->pullFlash();
+        $this->view->notice = isset($flash['notice']) ? $flash['notice'] : null;
+        $this->view->error = isset($flash['error']) ? $flash['error'] : null;
 
         try {
             $this->view->log = $this->supervisor->tailLog($program, $lines);
@@ -257,6 +271,21 @@ class IndexController extends pm_Controller_Action
         $this->getResponse()
             ->setHeader('Content-Type', 'application/json')
             ->setBody(json_encode($payload));
+    }
+
+    public function clearLogAction()
+    {
+        $this->requirePost();
+
+        $program = $this->getProgramForAction($this->_request->getPost('id'), SupervisorManager_Permissions::LOGS);
+        try {
+            $this->supervisor->clearLog($program);
+            $this->pushFlash('notice', 'Log cleared for ' . $program['display_name'] . '.');
+            return $this->redirectToLogs($program['id']);
+        } catch (Exception $e) {
+            $this->pushFlash('error', $e->getMessage());
+            return $this->redirectToLogs($program['id']);
+        }
     }
 
     public function domainAction()
@@ -297,6 +326,19 @@ class IndexController extends pm_Controller_Action
         }
     }
 
+    public function setupAction()
+    {
+        $this->requireAdmin();
+        $this->requirePost();
+
+        try {
+            $output = $this->supervisor->setup();
+            return $this->redirectWithNotice('Supervisor setup completed. ' . trim($output));
+        } catch (Exception $e) {
+            return $this->redirectWithError($e->getMessage());
+        }
+    }
+
     private function formData(array $program = array())
     {
         return array(
@@ -325,7 +367,6 @@ class IndexController extends pm_Controller_Action
             'profile_url' => self::CREATOR_PROFILE,
             'github_url' => self::GITHUB_URL,
             'logo_url' => self::LOGO_URL,
-            'install_url' => self::GITHUB_URL . '/releases/download/latest/supervisor-manager.zip',
         );
     }
 
@@ -432,6 +473,11 @@ class IndexController extends pm_Controller_Action
         }
 
         return $permissions;
+    }
+
+    private function supervisorProgramName(array $program)
+    {
+        return !empty($program['supervisor_name']) ? $program['supervisor_name'] : $program['name'];
     }
 
     private function getProgramForAction($id, $permission)
@@ -684,6 +730,18 @@ class IndexController extends pm_Controller_Action
         $this->_helper->viewRenderer->setNoRender(true);
         $this->_helper->layout()->disableLayout();
         $this->getResponse()->setRedirect(pm_Context::getBaseUrl() . 'index.php/index/index' . $this->domainQuery());
+    }
+
+    private function redirectToLogs($programId)
+    {
+        $this->_helper->viewRenderer->setNoRender(true);
+        $this->_helper->layout()->disableLayout();
+        $query = '?id=' . urlencode($programId);
+        $domainQuery = $this->domainQuery();
+        if ($domainQuery !== '') {
+            $query .= '&' . ltrim($domainQuery, '?');
+        }
+        $this->getResponse()->setRedirect(pm_Context::getBaseUrl() . 'index.php/index/logs' . $query);
     }
 
     private function shortenMessage($message)

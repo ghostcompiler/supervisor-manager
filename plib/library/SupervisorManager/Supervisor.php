@@ -58,6 +58,15 @@ class SupervisorManager_Supervisor
         return $this->tail($program['name'], $lines);
     }
 
+    public function clearLog(array $program)
+    {
+        if (empty($program['log_path'])) {
+            throw new pm_Exception('No managed log file is configured for this program.');
+        }
+
+        return $this->call('clear-log', '', array('--file=' . $program['log_path']));
+    }
+
     public function reload()
     {
         return $this->call('reload', '');
@@ -77,6 +86,11 @@ class SupervisorManager_Supervisor
     public function install()
     {
         return $this->call('install', '');
+    }
+
+    public function setup()
+    {
+        return $this->call('setup', '');
     }
 
     public function writeConfig(array $program)

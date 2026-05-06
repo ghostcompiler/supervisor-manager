@@ -1,0 +1,38 @@
+<?php
+$domainQuery = !empty($this->domainQuery) ? $this->domainQuery : '';
+$extensionInfo = !empty($this->extensionInfo) ? $this->extensionInfo : array();
+$backUrl = pm_Context::getActionUrl('index', 'index') . $domainQuery;
+?>
+
+<div class="sm-info-page">
+    <div class="sm-info-page-head">
+        <div class="sm-info-page-brand">
+            <img src="<?php echo $this->escape(isset($extensionInfo['logo_url']) ? $extensionInfo['logo_url'] : ''); ?>" alt="Ghost Compiler logo">
+            <div>
+                <span>Extension Information</span>
+                <h1><?php echo $this->escape(isset($extensionInfo['name']) ? $extensionInfo['name'] : 'Supervisor Manager'); ?></h1>
+                <p>Domain-scoped Supervisor process management for Plesk administrators, resellers, and customers.</p>
+            </div>
+        </div>
+        <a class="btn" href="<?php echo $this->escape($backUrl); ?>">Back</a>
+    </div>
+
+    <div class="sm-info-page-grid">
+        <div>
+            <span>Version</span>
+            <strong><?php echo $this->escape(isset($extensionInfo['version']) ? 'v' . $extensionInfo['version'] : 'v1.0.0'); ?></strong>
+        </div>
+        <div>
+            <span>Creator</span>
+            <strong><?php echo $this->escape(isset($extensionInfo['creator']) ? $extensionInfo['creator'] : 'Ghost Compiler'); ?></strong>
+        </div>
+        <div>
+            <span>Email</span>
+            <a href="mailto:<?php echo $this->escape(isset($extensionInfo['email']) ? $extensionInfo['email'] : 'hello@ghostcompiler.in'); ?>"><?php echo $this->escape(isset($extensionInfo['email']) ? $extensionInfo['email'] : 'hello@ghostcompiler.in'); ?></a>
+        </div>
+        <div>
+            <span>GitHub</span>
+            <a href="<?php echo $this->escape(isset($extensionInfo['github_url']) ? $extensionInfo['github_url'] : '#'); ?>" target="_blank" rel="noopener noreferrer">supervisor-manager</a>
+        </div>
+    </div>
+</div>

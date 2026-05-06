@@ -2,9 +2,10 @@
     <?php
     $domainQuery = !empty($this->domainQuery) ? $this->domainQuery : '';
     $domainParam = strpos($domainQuery, 'site_id=') !== false ? 'site_id' : 'dom_id';
-    $infoQuery = empty($domainQuery) ? '?info=1' : $domainQuery . '&info=1';
+    $infoUrl = pm_Context::getActionUrl('index', 'info') . $domainQuery;
     $extensionInfo = !empty($this->extensionInfo) ? $this->extensionInfo : array();
     $supervisorInstalled = !empty($this->diagnostics['installed']);
+    $supervisorHealthy = !empty($this->diagnostics['healthy']);
     $hasAccess = !empty($this->hasAccess);
     ?>
     <?php if ($hasAccess || !empty($this->isAdmin)): ?>
@@ -20,8 +21,17 @@
                             <button class="btn btn-primary" type="submit">Install</button>
                         </form>
                     <?php endif; ?>
-                    <a class="btn" href="<?php echo $this->escape(pm_Context::getActionUrl('index', 'index') . $infoQuery . '#supervisor-info'); ?>">Info</a>
+                    <a class="btn" href="<?php echo $this->escape($infoUrl); ?>">Info</a>
                 <?php else: ?>
+                    <?php if (!$supervisorHealthy && !empty($this->canSetup)): ?>
+                        <form method="post" action="<?php echo $this->escape(pm_Context::getActionUrl('index', 'setup')); ?>" onsubmit="return confirm('Repair Supervisor service and socket setup now?');">
+                            <?php if (!empty($this->domainContext)): ?>
+                                <input type="hidden" name="context_domain_id" value="<?php echo (int) $this->domainId; ?>">
+                                <input type="hidden" name="context_domain_param" value="<?php echo $this->escape($domainParam); ?>">
+                            <?php endif; ?>
+                            <button class="btn btn-primary" type="submit">Repair Supervisor</button>
+                        </form>
+                    <?php endif; ?>
                     <?php if (!empty($this->canCreate)): ?>
                         <a class="btn" href="<?php echo $this->escape(pm_Context::getActionUrl('index', 'add') . $domainQuery); ?>">Add Program</a>
                     <?php endif; ?>
@@ -34,7 +44,7 @@
                             <button class="btn" type="submit">Reread</button>
                         </form>
                     <?php endif; ?>
-                    <a class="btn" href="<?php echo $this->escape(pm_Context::getActionUrl('index', 'index') . $infoQuery . '#supervisor-info'); ?>">Info</a>
+                    <a class="btn" href="<?php echo $this->escape($infoUrl); ?>">Info</a>
                     <a class="btn" href="<?php echo $this->escape(pm_Context::getActionUrl('index', 'index') . $domainQuery); ?>">Refresh</a>
                 <?php endif; ?>
             </div>
@@ -48,38 +58,6 @@
 <?php if (!empty($this->error)): ?>
     <div class="sm-message sm-message-error"><?php echo $this->escape($this->error); ?></div>
 <?php endif; ?>
-
-    <?php if (!empty($this->showInfo)): ?>
-        <section class="sm-info-card" id="supervisor-info">
-            <a class="sm-info-close" href="<?php echo $this->escape(pm_Context::getActionUrl('index', 'index') . $domainQuery); ?>">Close</a>
-            <div class="sm-info-brand">
-                <img src="<?php echo $this->escape(isset($extensionInfo['logo_url']) ? $extensionInfo['logo_url'] : ''); ?>" alt="Ghost Compiler logo">
-                <div>
-                    <span>Extension Information</span>
-                    <h2><?php echo $this->escape(isset($extensionInfo['name']) ? $extensionInfo['name'] : 'Supervisor Manager'); ?> <?php echo $this->escape(isset($extensionInfo['version']) ? 'v' . $extensionInfo['version'] : ''); ?></h2>
-                    <p>Domain-scoped Supervisor process management for Plesk administrators, resellers, and customers.</p>
-                </div>
-            </div>
-            <div class="sm-info-grid">
-                <div>
-                    <span>Creator</span>
-                    <strong><?php echo $this->escape(isset($extensionInfo['creator']) ? $extensionInfo['creator'] : 'Ghost Compiler'); ?></strong>
-                </div>
-                <div>
-                    <span>Email</span>
-                    <a href="mailto:<?php echo $this->escape(isset($extensionInfo['email']) ? $extensionInfo['email'] : 'hello@ghostcompiler.in'); ?>"><?php echo $this->escape(isset($extensionInfo['email']) ? $extensionInfo['email'] : 'hello@ghostcompiler.in'); ?></a>
-                </div>
-                <div>
-                    <span>GitHub</span>
-                    <a href="<?php echo $this->escape(isset($extensionInfo['github_url']) ? $extensionInfo['github_url'] : '#'); ?>" target="_blank" rel="noopener noreferrer">supervisor-manager</a>
-                </div>
-                <div>
-                    <span>Install URL</span>
-                    <code>plesk bin extension --install-url <?php echo $this->escape(isset($extensionInfo['install_url']) ? $extensionInfo['install_url'] : ''); ?></code>
-                </div>
-            </div>
-        </section>
-    <?php endif; ?>
 
     <?php if ($this->isAdmin): ?>
         <div class="sm-summary">
@@ -95,7 +73,7 @@
             <?php endif; ?>
             <div class="sm-summary-item">
                 <span>Supervisor</span>
-                <strong><?php echo $supervisorInstalled ? 'Installed' : 'Not installed'; ?></strong>
+                <strong><?php echo $supervisorInstalled ? ($supervisorHealthy ? 'Ready' : 'Needs setup') : 'Not installed'; ?></strong>
             </div>
             <div class="sm-summary-item">
                 <span>OS</span>
@@ -107,9 +85,47 @@
             </div>
             <div class="sm-summary-item">
                 <span>Service</span>
-                <strong><?php echo $this->escape(isset($this->diagnostics['service']) ? $this->diagnostics['service'] : 'supervisor'); ?></strong>
+                <strong><?php echo $this->escape(isset($this->diagnostics['service']) ? $this->diagnostics['service'] : 'supervisor'); ?><?php echo !empty($this->diagnostics['service_active']) ? ' active' : ' inactive'; ?></strong>
             </div>
         </div>
+        <?php if ($supervisorInstalled && !$supervisorHealthy): ?>
+            <section class="sm-install-card">
+                <div class="sm-install-head">
+                    <div>
+                        <span>Supervisor needs setup</span>
+                        <h2>Repair the Supervisor service and socket</h2>
+                        <p><?php echo $this->escape(isset($this->diagnostics['status_output']) && trim($this->diagnostics['status_output']) !== '' ? trim($this->diagnostics['status_output']) : 'Supervisor is installed, but supervisorctl cannot connect to the running service.'); ?></p>
+                    </div>
+                    <strong>Needs setup</strong>
+                </div>
+                <div class="sm-install-grid">
+                    <div>
+                        <span>Detected OS</span>
+                        <strong><?php echo $this->escape(isset($this->diagnostics['os']) ? $this->diagnostics['os'] : 'Unknown'); ?></strong>
+                    </div>
+                    <div>
+                        <span>Socket</span>
+                        <strong><?php echo $this->escape(isset($this->diagnostics['socket']) ? $this->diagnostics['socket'] : '/var/run/supervisor.sock'); ?></strong>
+                    </div>
+                    <div>
+                        <span>Main config</span>
+                        <strong><?php echo $this->escape(isset($this->diagnostics['main_config']) ? $this->diagnostics['main_config'] : 'Not detected'); ?></strong>
+                    </div>
+                </div>
+                <div class="sm-install-actions">
+                    <?php if (!empty($this->canSetup)): ?>
+                        <form method="post" action="<?php echo $this->escape(pm_Context::getActionUrl('index', 'setup')); ?>" onsubmit="return confirm('Repair Supervisor service and socket setup now?');">
+                            <?php if (!empty($this->domainContext)): ?>
+                                <input type="hidden" name="context_domain_id" value="<?php echo (int) $this->domainId; ?>">
+                                <input type="hidden" name="context_domain_param" value="<?php echo $this->escape($domainParam); ?>">
+                            <?php endif; ?>
+                            <button class="btn btn-primary" type="submit">Repair Supervisor</button>
+                        </form>
+                    <?php endif; ?>
+                    <a class="btn" href="<?php echo $this->escape(pm_Context::getActionUrl('index', 'index') . $domainQuery); ?>">Refresh</a>
+                </div>
+            </section>
+        <?php endif; ?>
         <?php if (!$supervisorInstalled): ?>
             <section class="sm-install-card">
                 <div class="sm-install-head">
@@ -163,7 +179,7 @@
                             <button class="btn btn-primary" type="submit">Install Supervisor</button>
                         </form>
                     <?php endif; ?>
-                    <a class="btn" href="<?php echo $this->escape(pm_Context::getActionUrl('index', 'index') . $infoQuery . '#supervisor-info'); ?>">Extension Info</a>
+                    <a class="btn" href="<?php echo $this->escape($infoUrl); ?>">Extension Info</a>
                 </div>
             </section>
         <?php endif; ?>
@@ -188,7 +204,8 @@
         <div class="sm-list">
         <?php foreach ($this->programs as $program): ?>
             <?php
-            $status = isset($this->statuses[$program['name']]) ? $this->statuses[$program['name']] : array('state' => 'UNKNOWN', 'detail' => 'Not checked.');
+            $statusName = !empty($program['supervisor_name']) ? $program['supervisor_name'] : $program['name'];
+            $status = isset($this->statuses[$statusName]) ? $this->statuses[$statusName] : array('state' => 'UNKNOWN', 'detail' => 'Not checked.');
             $stateClass = 'sm-status-' . strtolower($status['state']);
             $configExists = !empty($this->configExists[$program['id']]);
             $permissions = isset($this->programPermissions[$program['id']]) ? $this->programPermissions[$program['id']] : array('control' => false, 'logs' => false, 'manage' => false);

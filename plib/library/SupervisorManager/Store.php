@@ -161,6 +161,9 @@ class SupervisorManager_Store
         if (preg_match('/[\r\n]/', $command)) {
             throw new pm_Exception('Command must be a single line.');
         }
+        if ($this->isDiagnosticCommand($command)) {
+            throw new pm_Exception('Command must start a long-running process. Version/help checks like php -v exit immediately and cannot be managed by Supervisor.');
+        }
 
         $workingDirectory = trim($data['working_directory']);
         if ($workingDirectory === '') {
@@ -174,6 +177,7 @@ class SupervisorManager_Store
 
         $processUser = $domain->getSysUserLogin();
         $safeName = preg_replace('/[^A-Za-z0-9_.-]+/', '-', $domain->getName() . '-' . str_replace(':', '-', $name));
+        $supervisorName = $safeName;
         $configDir = is_dir('/etc/supervisord.d') && !is_dir('/etc/supervisor/conf.d') ? '/etc/supervisord.d' : '/etc/supervisor/conf.d';
         $configPath = $configDir . '/plesk-' . $safeName . '.conf';
         $logPath = '/var/log/supervisor/plesk/' . $safeName . '.log';
@@ -184,10 +188,12 @@ class SupervisorManager_Store
             'display_name' => trim($data['display_name']) !== '' ? trim($data['display_name']) : $name,
             'domain_id' => (int) $domain->getId(),
             'domain_name' => $domain->getDisplayName(),
+            'domain_ascii_name' => $domain->getName(),
             'command' => $command,
             'working_directory' => $workingDirectory,
             'allowed_roots' => $allowedRoots,
             'process_user' => $processUser,
+            'supervisor_name' => $supervisorName,
             'autostart' => !empty($data['autostart']),
             'autorestart' => !empty($data['autorestart']),
             'config_path' => $configPath,
@@ -201,6 +207,17 @@ class SupervisorManager_Store
 
     private function enrichLegacyItem(array $item)
     {
+        if (empty($item['supervisor_name'])) {
+            if (!empty($item['config_path'])) {
+                $base = basename($item['config_path'], '.conf');
+                $item['supervisor_name'] = preg_replace('/^plesk-/', '', $base);
+            } elseif (!empty($item['domain_name']) && !empty($item['name'])) {
+                $item['supervisor_name'] = preg_replace('/[^A-Za-z0-9_.-]+/', '-', $item['domain_name'] . '-' . str_replace(':', '-', $item['name']));
+            } else {
+                $item['supervisor_name'] = isset($item['name']) ? $item['name'] : '';
+            }
+        }
+
         if (empty($item['log_path'])) {
             if (!empty($item['config_path'])) {
                 $base = basename($item['config_path'], '.conf');
@@ -252,6 +269,11 @@ class SupervisorManager_Store
         }
 
         return $documentRoot;
+    }
+
+    private function isDiagnosticCommand($command)
+    {
+        return (bool) preg_match('/^\s*(?:\S+\/)?(?:php|node|npm|yarn|pnpm|python|python3|ruby|composer)\s+(?:-v|--version|-h|--help|help|version)\s*$/i', $command);
     }
 
     private function normalizeProjectRoot($domain, $command, $workingDirectory)

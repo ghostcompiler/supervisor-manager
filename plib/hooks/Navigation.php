@@ -34,6 +34,11 @@ class Modules_SupervisorManager_Navigation extends pm_Hook_Navigation
                         'action' => 'logs',
                         'label' => 'Logs',
                     ),
+                    array(
+                        'controller' => 'index',
+                        'action' => 'info',
+                        'label' => 'Info',
+                    ),
                 ),
             ),
         );

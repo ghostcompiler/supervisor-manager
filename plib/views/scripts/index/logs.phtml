@@ -4,9 +4,17 @@ $domainQuery = !empty($this->domainQuery) ? $this->domainQuery : '';
 $domainPart = !empty($this->domainContext) ? '&' . ltrim($domainQuery, '?') : '';
 $baseLogsUrl = pm_Context::getActionUrl('index', 'logs') . '?id=' . urlencode($id) . $domainPart;
 $dataUrl = pm_Context::getBaseUrl() . 'index.php/index/log-data?id=' . urlencode($id) . $domainPart;
+$domainParam = strpos($domainQuery, 'site_id=') !== false ? 'site_id' : 'dom_id';
 ?>
 
 <div class="sm-log-page">
+    <?php if (!empty($this->notice)): ?>
+        <div class="sm-message sm-message-info"><?php echo $this->escape($this->notice); ?></div>
+    <?php endif; ?>
+    <?php if (!empty($this->error)): ?>
+        <div class="sm-message sm-message-error"><?php echo $this->escape($this->error); ?></div>
+    <?php endif; ?>
+
     <div class="sm-log-head">
         <div>
             <h1><?php echo $this->escape($this->program['display_name']); ?> Logs</h1>
@@ -23,6 +31,15 @@ $dataUrl = pm_Context::getBaseUrl() . 'index.php/index/log-data?id=' . urlencode
             <a class="btn" href="<?php echo $this->escape($baseLogsUrl . '&lines=300'); ?>">300</a>
             <a class="btn" href="<?php echo $this->escape($baseLogsUrl . '&lines=500'); ?>">500</a>
             <button class="btn" type="button" id="sm-log-toggle">Pause</button>
+            <button class="btn" type="button" id="sm-log-copy">Copy Log</button>
+            <form method="post" action="<?php echo $this->escape(pm_Context::getActionUrl('index', 'clear-log')); ?>" onsubmit="return confirm('Clear this log file now?');">
+                <input type="hidden" name="id" value="<?php echo $this->escape($id); ?>">
+                <?php if (!empty($this->domainContext)): ?>
+                    <input type="hidden" name="context_domain_id" value="<?php echo (int) $this->domainId; ?>">
+                    <input type="hidden" name="context_domain_param" value="<?php echo $this->escape($domainParam); ?>">
+                <?php endif; ?>
+                <button class="btn" type="submit">Clear Log</button>
+            </form>
         </div>
     </div>
 
@@ -43,6 +60,7 @@ $dataUrl = pm_Context::getBaseUrl() . 'index.php/index/log-data?id=' . urlencode
 (function () {
     var output = document.getElementById('sm-log-output');
     var toggle = document.getElementById('sm-log-toggle');
+    var copy = document.getElementById('sm-log-copy');
     var state = document.getElementById('sm-log-state');
     var updated = document.getElementById('sm-log-updated');
     var paused = false;
@@ -85,6 +103,36 @@ $dataUrl = pm_Context::getBaseUrl() . 'index.php/index/log-data?id=' . urlencode
             refreshLog();
         }
     });
+
+    copy.addEventListener('click', function () {
+        var text = output.textContent || '';
+        function done() {
+            copy.textContent = 'Copied';
+            window.setTimeout(function () {
+                copy.textContent = 'Copy Log';
+            }, 1400);
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(done).catch(function () {
+                fallbackCopy(text, done);
+            });
+            return;
+        }
+        fallbackCopy(text, done);
+    });
+
+    function fallbackCopy(text, done) {
+        var textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.setAttribute('readonly', 'readonly');
+        textarea.style.position = 'fixed';
+        textarea.style.left = '-9999px';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        done();
+    }
 
     scrollBottom();
     refreshLog();

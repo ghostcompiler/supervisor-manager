@@ -12,9 +12,11 @@ $allowedActions = array(
     'stop',
     'tail',
     'tail-file',
+    'clear-log',
     'reload',
     'diagnostics',
     'install',
+    'setup',
     'write-config',
     'delete-config',
 );
@@ -38,6 +40,11 @@ if ($action === 'install') {
     exit(0);
 }
 
+if ($action === 'setup') {
+    setupSupervisor();
+    exit(0);
+}
+
 if ($action === 'write-config') {
     $programData = decodePayload(isset($options['payload']) ? $options['payload'] : '');
     writeProgramConfig($programData);
@@ -51,6 +58,11 @@ if ($action === 'delete-config') {
 
 if ($action === 'tail-file') {
     tailFile(isset($options['file']) ? $options['file'] : '', $lines);
+    exit(0);
+}
+
+if ($action === 'clear-log') {
+    clearLogFile(isset($options['file']) ? $options['file'] : '');
     exit(0);
 }
 
@@ -81,15 +93,28 @@ function diagnostics()
 {
     $os = detectOs();
     $ctl = findSupervisorctl(false);
+    $service = supervisorServiceName();
+    $mainConfig = supervisorMainConfig();
+    $status = supervisorctlStatus($ctl, $mainConfig);
+    $active = serviceIsActive($service);
+    $socket = supervisorSocketPath($mainConfig);
+    $socketExists = $socket !== null && file_exists($socket);
+    $healthy = $ctl !== null && $status['ok'] && ($active || $socketExists);
 
     return array(
         'installed' => $ctl !== null,
+        'healthy' => $healthy,
         'supervisorctl' => $ctl,
         'os' => $os['pretty_name'],
         'os_id' => $os['id'],
         'config_dir' => supervisorConfigDir(),
-        'main_config' => supervisorMainConfig(),
-        'service' => supervisorServiceName(),
+        'main_config' => $mainConfig,
+        'service' => $service,
+        'service_active' => $active,
+        'socket' => $socket,
+        'socket_exists' => $socketExists,
+        'status_ok' => $status['ok'],
+        'status_output' => $status['output'],
         'install_command' => installCommandForOs($os['id']),
         'supports_install' => installCommandForOs($os['id']) !== null,
     );
@@ -105,9 +130,103 @@ function installSupervisor()
     }
 
     runShell($command);
-    $service = supervisorServiceName();
-    runShell('systemctl enable --now ' . escapeshellarg($service) . ' || service ' . escapeshellarg($service) . ' start || true');
+    setupSupervisor();
     echo "Installed using: {$command}\n";
+}
+
+function setupSupervisor()
+{
+    $os = detectOs();
+    $service = supervisorServiceName();
+    $configDir = supervisorConfigDir();
+    $logDir = '/var/log/supervisor/plesk';
+
+    if (!is_dir($configDir)) {
+        mkdir($configDir, 0755, true);
+    }
+    if (!is_dir($logDir)) {
+        mkdir($logDir, 0755, true);
+    }
+
+    if (in_array($os['id'], array('ubuntu', 'debian'), true)) {
+        setupDebianSupervisorConfig();
+    }
+
+    runShell('systemctl enable ' . escapeshellarg($service) . ' 2>/dev/null || true');
+    runShell('systemctl restart ' . escapeshellarg($service) . ' 2>/dev/null || service ' . escapeshellarg($service) . ' restart');
+    $ctl = findSupervisorctl(false);
+    $mainConfig = supervisorMainConfig();
+    $status = supervisorctlStatus($ctl, $mainConfig);
+    if (!$status['ok']) {
+        fwrite(STDERR, "Supervisor service was set up, but supervisorctl still cannot connect: " . trim($status['output']) . "\n");
+        exit(2);
+    }
+
+    echo "Supervisor setup completed for {$os['pretty_name']} using service {$service}.\n";
+}
+
+function setupDebianSupervisorConfig()
+{
+    $config = supervisorMainConfig();
+    if ($config === null) {
+        $config = '/etc/supervisor/supervisord.conf';
+    }
+    $dir = dirname($config);
+    if (!is_dir($dir)) {
+        mkdir($dir, 0755, true);
+    }
+    if (!file_exists($config)) {
+        $content = array(
+            '[unix_http_server]',
+            'file=/var/run/supervisor.sock',
+            'chmod=0700',
+            '',
+            '[supervisord]',
+            'logfile=/var/log/supervisor/supervisord.log',
+            'pidfile=/var/run/supervisord.pid',
+            'childlogdir=/var/log/supervisor',
+            '',
+            '[rpcinterface:supervisor]',
+            'supervisor.rpcinterface_factory = supervisor.rpcinterface:make_main_rpcinterface',
+            '',
+            '[supervisorctl]',
+            'serverurl=unix:///var/run/supervisor.sock',
+            '',
+            '[include]',
+            'files = /etc/supervisor/conf.d/*.conf',
+            '',
+        );
+        file_put_contents($config, implode("\n", $content), LOCK_EX);
+        chmod($config, 0644);
+        return;
+    }
+
+    $contents = file_get_contents($config);
+    if ($contents === false) {
+        return;
+    }
+    $changed = false;
+    if (strpos($contents, '[unix_http_server]') === false) {
+        $contents .= "\n[unix_http_server]\nfile=/var/run/supervisor.sock\nchmod=0700\n";
+        $changed = true;
+    }
+    if (strpos($contents, '[supervisorctl]') === false) {
+        $contents .= "\n[supervisorctl]\nserverurl=unix:///var/run/supervisor.sock\n";
+        $changed = true;
+    }
+    if (strpos($contents, '[rpcinterface:supervisor]') === false) {
+        $contents .= "\n[rpcinterface:supervisor]\nsupervisor.rpcinterface_factory = supervisor.rpcinterface:make_main_rpcinterface\n";
+        $changed = true;
+    }
+    if (strpos($contents, '[include]') === false) {
+        $contents .= "\n[include]\nfiles = /etc/supervisor/conf.d/*.conf\n";
+        $changed = true;
+    }
+    if ($changed) {
+        copy($config, $config . '.plesk-supervisor-manager.bak');
+        file_put_contents($config, $contents, LOCK_EX);
+        chmod($config, 0644);
+    }
 }
 
 function writeProgramConfig(array $program)
@@ -117,8 +236,13 @@ function writeProgramConfig(array $program)
         fwrite(STDERR, "Invalid Supervisor program name.\n");
         exit(2);
     }
+    $supervisorName = supervisorProgramName($program, $name);
 
-    $command = normalizeProgramCommand(singleLine(isset($program['command']) ? $program['command'] : '', 'Command'));
+    $command = singleLine(isset($program['command']) ? $program['command'] : '', 'Command');
+    if (isDiagnosticCommand($command)) {
+        fwrite(STDERR, "Command must start a long-running process. Version/help checks like php -v exit immediately and cannot be managed by Supervisor.\n");
+        exit(2);
+    }
     $workingDirectory = singleLine(isset($program['working_directory']) ? $program['working_directory'] : '/', 'Working directory');
     $user = normalizeProcessUser(isset($program['process_user']) ? $program['process_user'] : '');
     $configPath = configPathForProgram($program);
@@ -155,14 +279,18 @@ function writeProgramConfig(array $program)
 
     $logPath = logPathForProgram($program, $name);
     ensureSafeTargetFile($configPath, 'config');
+    prepareLogFile($logPath);
     $autostart = !empty($program['autostart']) ? 'true' : 'false';
     $autorestart = !empty($program['autorestart']) ? 'true' : 'false';
-    $environmentPath = buildEnvironmentPath();
+    $phpCli = preferredPhpCliBinary($program);
+    $environmentPath = buildEnvironmentPath($phpCli);
+    $supervisorCommand = commandForSupervisor($command, $phpCli);
 
     $content = array(
         '; Generated by Plesk Supervisor Manager. Edit from Plesk when possible.',
-        '[program:' . $name . ']',
-        'command=' . $command,
+        '[program:' . $supervisorName . ']',
+        'process_name=%(program_name)s',
+        'command=' . $supervisorCommand,
         'directory=' . $workingDirectory,
         'environment=PATH="' . $environmentPath . '"',
         'user=' . $user,
@@ -179,7 +307,7 @@ function writeProgramConfig(array $program)
 
     file_put_contents($configPath, implode("\n", $content), LOCK_EX);
     chmod($configPath, 0644);
-    echo "Generated {$configPath}\nUsing directory={$workingDirectory}\nUsing PATH={$environmentPath}\nUsing log={$logPath}\n";
+    echo "Generated {$configPath}\nUsing program={$supervisorName}\nUsing command={$supervisorCommand}\nUsing directory={$workingDirectory}\nUsing PHP=" . ($phpCli !== null ? $phpCli : 'default PATH') . "\nUsing PATH={$environmentPath}\nUsing log={$logPath}\n";
 }
 
 function deleteProgramConfig($config)
@@ -214,6 +342,38 @@ function tailFile($file, $lines)
     }
 
     runCommand(array('tail', '-' . $lines, $file));
+}
+
+function clearLogFile($file)
+{
+    $file = validateLogPath($file);
+    $directory = dirname($file);
+    if (!is_dir($directory)) {
+        mkdir($directory, 0755, true);
+    }
+    if (!file_exists($file)) {
+        touch($file);
+    }
+    if (is_link($file) || !is_file($file)) {
+        fwrite(STDERR, "Invalid log file path.\n");
+        exit(2);
+    }
+    $handle = fopen($file, 'c');
+    if ($handle === false) {
+        fwrite(STDERR, "Unable to open log file for clearing.\n");
+        exit(1);
+    }
+    if (!flock($handle, LOCK_EX)) {
+        fclose($handle);
+        fwrite(STDERR, "Unable to lock log file for clearing.\n");
+        exit(1);
+    }
+    ftruncate($handle, 0);
+    fflush($handle);
+    flock($handle, LOCK_UN);
+    fclose($handle);
+    chmod($file, 0644);
+    echo "Cleared {$file}\n";
 }
 
 function isPathInsideAnyRoot($path, array $roots)
@@ -288,25 +448,30 @@ function singleLine($value, $label)
     return $value;
 }
 
-function normalizeProgramCommand($command)
+function isDiagnosticCommand($command)
 {
-    if (preg_match('/^php\s+(.+)$/', $command, $matches)) {
-        $php = findBestPhpBinary();
-        if ($php !== null) {
-            return $php . ' ' . $matches[1];
-        }
+    return (bool) preg_match('/^\s*(?:\S+\/)?(?:php|node|npm|yarn|pnpm|python|python3|ruby|composer)\s+(?:-v|--version|-h|--help|help|version)\s*$/i', $command);
+}
+
+function commandForSupervisor($command, $preferredPhpCli = null)
+{
+    if ($preferredPhpCli !== null && preg_match('/^(?:\S+\/)?php(\s+.*)?$/', $command, $matches)) {
+        return '/usr/bin/env php' . (isset($matches[1]) ? $matches[1] : '');
     }
 
     return $command;
 }
 
-function buildEnvironmentPath()
+function buildEnvironmentPath($preferredPhpCli = null)
 {
     $paths = array();
+    if ($preferredPhpCli !== null && is_executable($preferredPhpCli)) {
+        $paths[] = dirname($preferredPhpCli);
+    }
     foreach (findNodeDirectories() as $path) {
         $paths[] = $path;
     }
-    foreach (glob('/opt/plesk/php/*/bin') ?: array() as $path) {
+    foreach (findPhpDirectories() as $path) {
         $paths[] = $path;
     }
     foreach (array('/usr/local/sbin', '/usr/local/bin', '/usr/sbin', '/usr/bin', '/sbin', '/bin') as $path) {
@@ -314,6 +479,16 @@ function buildEnvironmentPath()
     }
 
     return implode(':', array_values(array_unique($paths)));
+}
+
+function findPhpDirectories()
+{
+    $paths = glob('/opt/plesk/php/*/bin') ?: array();
+    usort($paths, function ($a, $b) {
+        return version_compare(basename(dirname($b)), basename(dirname($a)));
+    });
+
+    return $paths;
 }
 
 function findNodeDirectories()
@@ -343,27 +518,154 @@ function logPathForProgram(array $program, $name)
     return validateLogPath('/var/log/supervisor/plesk/' . $safeLogName . '.log');
 }
 
-function findBestPhpBinary()
+function preferredPhpCliBinary(array $program)
 {
-    $candidates = glob('/opt/plesk/php/*/bin/php');
-    if (is_array($candidates) && !empty($candidates)) {
-        usort($candidates, function ($a, $b) {
-            return version_compare(basename(dirname(dirname($b))), basename(dirname(dirname($a))));
-        });
-        foreach ($candidates as $candidate) {
-            if (is_executable($candidate)) {
-                return $candidate;
-            }
+    if (!empty($program['domain_id'])) {
+        $handlerId = domainPhpHandlerIdById((int) $program['domain_id']);
+        $php = phpCliForHandler($handlerId);
+        if ($php !== null) {
+            return $php;
         }
     }
 
-    foreach (array('/usr/bin/php', '/usr/local/bin/php') as $candidate) {
+    $domain = '';
+    if (!empty($program['domain_ascii_name'])) {
+        $domain = $program['domain_ascii_name'];
+    } elseif (!empty($program['domain_name'])) {
+        $domain = $program['domain_name'];
+    }
+
+    if ($domain !== '') {
+        $handlerId = domainPhpHandlerId($domain);
+        $php = phpCliForHandler($handlerId);
+        if ($php !== null) {
+            return $php;
+        }
+    }
+
+    return null;
+}
+
+function domainPhpHandlerIdById($domainId)
+{
+    if ($domainId <= 0) {
+        return null;
+    }
+
+    $plesk = findPleskCli();
+    if ($plesk === null) {
+        return null;
+    }
+    $sql = 'select php_handler_id from hosting where dom_id = ' . (int) $domainId . ' limit 1';
+    $result = runShellCapture(escapeshellarg($plesk) . ' db -N -B -e ' . escapeshellarg($sql));
+    if ($result['code'] !== 0) {
+        return null;
+    }
+
+    $handlerId = trim($result['stdout']);
+    return $handlerId !== '' ? $handlerId : null;
+}
+
+function domainPhpHandlerId($domain)
+{
+    if (!preg_match('/^[A-Za-z0-9_.-]+$/', $domain)) {
+        return null;
+    }
+
+    $sql = "select h.php_handler_id from hosting h inner join domains d on d.id = h.dom_id where d.name = '" . sqlString($domain) . "' limit 1";
+    $plesk = findPleskCli();
+    if ($plesk === null) {
+        return null;
+    }
+    $result = runShellCapture(escapeshellarg($plesk) . ' db -N -B -e ' . escapeshellarg($sql));
+    if ($result['code'] !== 0) {
+        return null;
+    }
+
+    $handlerId = trim($result['stdout']);
+    return $handlerId !== '' ? $handlerId : null;
+}
+
+function phpCliForHandler($handlerId)
+{
+    if (!is_string($handlerId) || $handlerId === '') {
+        return null;
+    }
+
+    if (preg_match('/^plesk-php([0-9])([0-9]+)-/', $handlerId, $matches)) {
+        $version = $matches[1] . '.' . $matches[2];
+        $candidate = '/opt/plesk/php/' . $version . '/bin/php';
         if (is_executable($candidate)) {
             return $candidate;
         }
     }
 
+    $plesk = findPleskCli();
+    if ($plesk === null) {
+        return null;
+    }
+    $result = runShellCapture(escapeshellarg($plesk) . ' bin php_handler --list 2>/dev/null');
+    if ($result['code'] !== 0) {
+        return null;
+    }
+
+    foreach (preg_split('/\r?\n/', trim($result['stdout'])) as $line) {
+        $columns = preg_split('/\s+/', trim($line));
+        if (empty($columns) || $columns[0] !== $handlerId) {
+            continue;
+        }
+        foreach ($columns as $column) {
+            if (preg_match('#/bin/php$#', $column) && is_executable($column)) {
+                return $column;
+            }
+        }
+    }
+
     return null;
+}
+
+function sqlString($value)
+{
+    return str_replace("'", "''", $value);
+}
+
+function findPleskCli()
+{
+    foreach (array('/usr/sbin/plesk', '/usr/local/psa/bin/plesk', '/opt/psa/bin/plesk') as $path) {
+        if (is_executable($path)) {
+            return $path;
+        }
+    }
+
+    return null;
+}
+
+function supervisorProgramName(array $program, $fallbackName)
+{
+    $name = isset($program['supervisor_name']) ? trim($program['supervisor_name']) : '';
+    if ($name === '') {
+        $name = $fallbackName;
+    }
+    $name = preg_replace('/[^A-Za-z0-9_.-]+/', '-', str_replace(':', '-', $name));
+    $name = trim($name, '-');
+    if ($name === '' || !isValidProgramName($name)) {
+        fwrite(STDERR, "Invalid generated Supervisor program name.\n");
+        exit(2);
+    }
+
+    return $name;
+}
+
+function prepareLogFile($path)
+{
+    $directory = dirname($path);
+    if (!is_dir($directory)) {
+        mkdir($directory, 0755, true);
+    }
+    if (!file_exists($path)) {
+        touch($path);
+        chmod($path, 0644);
+    }
 }
 
 function configPathForProgram(array $program)
@@ -513,6 +815,28 @@ function supervisorMainConfig()
     return null;
 }
 
+function supervisorSocketPath($config)
+{
+    if ($config !== null && is_readable($config)) {
+        $inUnixServer = false;
+        foreach (file($config) as $line) {
+            $line = trim($line);
+            if ($line === '' || $line[0] === ';' || $line[0] === '#') {
+                continue;
+            }
+            if (preg_match('/^\[(.+)\]$/', $line, $matches)) {
+                $inUnixServer = $matches[1] === 'unix_http_server';
+                continue;
+            }
+            if ($inUnixServer && preg_match('/^file\s*=\s*(.+)$/', $line, $matches)) {
+                return trim($matches[1], "\"'");
+            }
+        }
+    }
+
+    return '/var/run/supervisor.sock';
+}
+
 function supervisorServiceName()
 {
     if (file_exists('/etc/systemd/system/supervisord.service') || file_exists('/usr/lib/systemd/system/supervisord.service')) {
@@ -520,6 +844,31 @@ function supervisorServiceName()
     }
 
     return 'supervisor';
+}
+
+function serviceIsActive($service)
+{
+    $result = runShellCapture('systemctl is-active ' . escapeshellarg($service));
+    return $result['code'] === 0 && trim($result['stdout']) === 'active';
+}
+
+function supervisorctlStatus($ctl, $mainConfig)
+{
+    if ($ctl === null) {
+        return array('ok' => false, 'output' => 'supervisorctl was not found.');
+    }
+
+    $parts = array($ctl);
+    if ($mainConfig !== null) {
+        $parts[] = '-c';
+        $parts[] = $mainConfig;
+    }
+    $parts[] = 'status';
+    $result = runCommandCapture($parts);
+    return array(
+        'ok' => $result['code'] === 0,
+        'output' => trim($result['stdout'] . "\n" . $result['stderr']),
+    );
 }
 
 function restartServiceIfNeeded()
@@ -566,6 +915,25 @@ function installCommandForOs($osId)
 
 function runShell($command)
 {
+    $result = runShellCapture($command);
+    if ($result['stdout'] !== '') {
+        fwrite(STDOUT, $result['stdout']);
+    }
+    if ($result['stderr'] !== '') {
+        fwrite(STDERR, $result['stderr']);
+    }
+    if ($result['code'] !== 0) {
+        exit($result['code']);
+    }
+}
+
+function runCommandCapture(array $parts)
+{
+    return runShellCapture(implode(' ', array_map('escapeshellarg', $parts)));
+}
+
+function runShellCapture($command)
+{
     $descriptors = array(
         0 => array('pipe', 'r'),
         1 => array('pipe', 'w'),
@@ -574,8 +942,7 @@ function runShell($command)
 
     $process = proc_open($command, $descriptors, $pipes);
     if (!is_resource($process)) {
-        fwrite(STDERR, "Unable to execute command.\n");
-        exit(1);
+        return array('code' => 1, 'stdout' => '', 'stderr' => 'Unable to execute command.');
     }
 
     fclose($pipes[0]);
@@ -585,15 +952,8 @@ function runShell($command)
     fclose($pipes[2]);
 
     $code = proc_close($process);
-    if ($stdout !== '') {
-        fwrite(STDOUT, $stdout);
-    }
-    if ($stderr !== '') {
-        fwrite(STDERR, $stderr);
-    }
-    if ($code !== 0) {
-        exit($code);
-    }
+
+    return array('code' => $code, 'stdout' => $stdout, 'stderr' => $stderr);
 }
 
 function runCommand(array $parts)

@@ -1,3 +1,15 @@
+# 1.0.3
+
+- Added a dedicated extension info page and removed the install URL from the info display.
+- Replaced the generic extension icon with a Supervisor-focused icon.
+- Added Supervisor service health diagnostics and an admin repair action for broken service/socket setup on supported operating systems.
+- Added domain-scoped Supervisor program names to avoid collisions between programs with the same simple name on different domains.
+- Added domain PHP handler detection so generated Supervisor configs resolve `php` to the PHP version selected for the Plesk domain.
+- Preserved developer-entered commands instead of rewriting them to absolute PHP binary paths.
+- Added validation that rejects one-shot diagnostic commands such as `php -v`.
+- Added managed log pre-creation, live log copy, and clear-log actions.
+- Added uninstall cleanup for generated Supervisor configs, managed logs, and extension data.
+
 # 1.0.2
 
 - Hide customer and reseller navigation when Supervisor Manager access is not enabled for any assigned domain.
