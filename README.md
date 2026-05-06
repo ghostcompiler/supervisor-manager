@@ -60,30 +60,30 @@ It is built for hosting panels where admins need to run background commands for 
 
 ## Screenshots
 
+Open the full GitHub Pages documentation site:
 
-  <a href="docs/screenshots/dashboard.png">
-    <img src="docs/screenshots/dashboard.png" alt="Supervisor Manager dashboard">
-  </a>
-  <a href="docs/screenshots/add-program.png">
-    <img src="docs/screenshots/add-program.png" alt="Add Supervisor program">
-  </a>
-  <a href="docs/screenshots/live-logs.png">
-    <img src="docs/screenshots/live-logs.png" alt="Live log preview">
-  </a>
+[Supervisor Manager Documentation](https://ghostcompiler.github.io/supervisor-manager/)
+
+<a href="docs/screenshots/home_dark.png">
+  <img src="docs/screenshots/home_dark.png" alt="Supervisor Manager dashboard dark theme">
+</a>
 
 <details>
 
 ### 1. Dashboard
 
-![Supervisor Manager dashboard](docs/screenshots/dashboard.png)
+![Supervisor Manager dashboard dark theme](docs/screenshots/home_dark.png)
+![Supervisor Manager dashboard light theme](docs/screenshots/home_light.png)
 
 ### 2. Add Program
 
-![Add Supervisor program](docs/screenshots/add-program.png)
+![Add Supervisor program dark theme](docs/screenshots/add_dark.png)
+![Add Supervisor program light theme](docs/screenshots/add_light.png)
 
 ### 3. Live Logs
 
-![Live log preview](docs/screenshots/live-logs.png)
+![Live log preview dark theme](docs/screenshots/log_dark.png)
+![Live log preview light theme](docs/screenshots/log_light.png)
 
 </details>
 

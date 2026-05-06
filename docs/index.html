@@ -1,0 +1,1281 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Supervisor Manager for Plesk</title>
+  <meta name="description" content="Supervisor Manager is a Plesk extension for managing Supervisor programs with scoped access, domain PHP detection, live logs, and service repair tools.">
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f7f8fb;
+      --ink: #14202b;
+      --muted: #5f6d7a;
+      --line: #d9e0e8;
+      --panel: #ffffff;
+      --panel-2: #eef5f5;
+      --accent: #0f766e;
+      --accent-2: #2563eb;
+      --warn: #9a3412;
+      --code: #18212b;
+      --code-ink: #e7eef7;
+      --shadow: 0 18px 45px rgba(20, 32, 43, .12);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--bg);
+      font: 16px/1.65 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    a {
+      color: var(--accent-2);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    img {
+      max-width: 100%;
+      display: block;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      border-bottom: 1px solid rgba(217, 224, 232, .82);
+      background: rgba(247, 248, 251, .92);
+      backdrop-filter: blur(14px);
+    }
+
+    .nav {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+      min-height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+      color: var(--ink);
+      font-weight: 800;
+      letter-spacing: 0;
+      white-space: nowrap;
+    }
+
+    .brand img {
+      width: 34px;
+      height: 34px;
+      object-fit: contain;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 18px;
+      min-width: 0;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .nav-links a {
+      color: #344354;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 40px;
+      padding: 9px 15px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      color: var(--ink);
+      background: #fff;
+      font-weight: 800;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .button:hover {
+      text-decoration: none;
+      border-color: #b8c4d1;
+    }
+
+    .button.primary {
+      border-color: var(--accent);
+      color: #fff;
+      background: var(--accent);
+    }
+
+    .hero {
+      position: relative;
+      min-height: 680px;
+      display: grid;
+      align-items: end;
+      overflow: hidden;
+      color: #fff;
+      background: #111827;
+    }
+
+    .hero::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(90deg, rgba(7, 17, 28, .96) 0%, rgba(7, 17, 28, .78) 42%, rgba(7, 17, 28, .26) 100%),
+        url("screenshots/home_dark.png") center / cover no-repeat;
+      transform: scale(1.02);
+    }
+
+    .hero-inner {
+      position: relative;
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 110px 0 82px;
+    }
+
+    .eyebrow {
+      margin: 0 0 12px;
+      color: #88d1c8;
+      font-size: 13px;
+      font-weight: 900;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    h1,
+    h2,
+    h3 {
+      letter-spacing: 0;
+      line-height: 1.12;
+    }
+
+    h1 {
+      max-width: 760px;
+      margin: 0;
+      font-size: clamp(42px, 8vw, 82px);
+      font-weight: 900;
+    }
+
+    .hero-copy {
+      max-width: 720px;
+      margin: 22px 0 0;
+      color: #d4dee9;
+      font-size: 20px;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 30px;
+    }
+
+    .hero-actions .button {
+      min-height: 46px;
+      padding: 11px 18px;
+    }
+
+    .hero-actions .button:not(.primary) {
+      color: #fff;
+      background: rgba(255, 255, 255, .1);
+      border-color: rgba(255, 255, 255, .26);
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 1px;
+      margin-top: 54px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, .18);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, .18);
+      max-width: 920px;
+    }
+
+    .stat {
+      min-width: 0;
+      padding: 16px;
+      background: rgba(8, 20, 32, .58);
+    }
+
+    .stat span {
+      display: block;
+      color: #a9b8c8;
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+
+    .stat strong {
+      display: block;
+      margin-top: 6px;
+      color: #fff;
+      font-size: 17px;
+      overflow-wrap: anywhere;
+    }
+
+    main {
+      overflow: hidden;
+    }
+
+    section {
+      padding: 86px 0;
+    }
+
+    .wrap {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+    }
+
+    .section-head {
+      max-width: 820px;
+      margin-bottom: 32px;
+    }
+
+    .section-head h2 {
+      margin: 0;
+      font-size: clamp(30px, 4.5vw, 52px);
+      font-weight: 900;
+    }
+
+    .section-head p {
+      margin: 14px 0 0;
+      color: var(--muted);
+      font-size: 18px;
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .insight-row {
+      display: grid;
+      grid-template-columns: 1.1fr .9fr;
+      gap: 18px;
+      align-items: stretch;
+      margin-top: 18px;
+    }
+
+    .insight-panel {
+      min-width: 0;
+      padding: 24px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: linear-gradient(135deg, #ffffff 0%, #f0fdfa 100%);
+      box-shadow: var(--shadow);
+    }
+
+    .insight-panel h3 {
+      margin: 0 0 10px;
+      font-size: 26px;
+    }
+
+    .insight-panel p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .mini-list {
+      display: grid;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .mini-list div {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      padding: 12px;
+      border: 1px solid #cfe2df;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, .72);
+    }
+
+    .mini-list strong {
+      color: #0f766e;
+      white-space: nowrap;
+    }
+
+    .feature,
+    .doc-block,
+    .trouble,
+    .step {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: 0 1px 2px rgba(20, 32, 43, .04);
+    }
+
+    .feature {
+      padding: 22px;
+    }
+
+    .feature span {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 34px;
+      height: 34px;
+      margin-bottom: 18px;
+      border-radius: 6px;
+      color: #fff;
+      background: var(--accent);
+      font-weight: 900;
+    }
+
+    .feature h3,
+    .doc-block h3,
+    .trouble h3,
+    .step h3 {
+      margin: 0 0 10px;
+      font-size: 20px;
+    }
+
+    .feature p,
+    .doc-block p,
+    .trouble p,
+    .step p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .showcase {
+      background: #111827;
+      color: #f9fafb;
+    }
+
+    .showcase .section-head p {
+      color: #b8c4d1;
+    }
+
+    .slider-shell {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 280px;
+      gap: 22px;
+      align-items: start;
+    }
+
+    .compare {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, .16);
+      border-radius: 8px;
+      background: #0b1220;
+      box-shadow: 0 24px 64px rgba(0, 0, 0, .34);
+      aspect-ratio: 3420 / 1908;
+    }
+
+    .compare img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      user-select: none;
+      pointer-events: none;
+    }
+
+    .compare .light-img {
+      clip-path: inset(0 calc(100% - var(--split, 50%)) 0 0);
+    }
+
+    .compare input[type="range"] {
+      position: absolute;
+      inset: auto 18px 18px;
+      z-index: 4;
+      width: calc(100% - 36px);
+      accent-color: #2dd4bf;
+    }
+
+    .split-line {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: var(--split, 50%);
+      z-index: 3;
+      width: 2px;
+      background: #2dd4bf;
+      box-shadow: 0 0 0 1px rgba(17, 24, 39, .55);
+    }
+
+    .split-line::after {
+      content: "Light | Dark";
+      position: absolute;
+      top: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 7px 10px;
+      border-radius: 999px;
+      color: #10212b;
+      background: #d9fff8;
+      font-size: 12px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .thumbs {
+      display: grid;
+      gap: 10px;
+    }
+
+    .thumbs button {
+      width: 100%;
+      min-height: 48px;
+      padding: 11px 13px;
+      border: 1px solid rgba(255, 255, 255, .14);
+      border-radius: 6px;
+      color: #dbe7f4;
+      background: rgba(255, 255, 255, .08);
+      font: inherit;
+      font-weight: 800;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .thumbs button.active {
+      color: #052f2b;
+      border-color: #2dd4bf;
+      background: #99f6e4;
+    }
+
+    .docs-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .recipe-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .recipe {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: 0 1px 2px rgba(20, 32, 43, .04);
+    }
+
+    .recipe-head {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      justify-content: space-between;
+      padding: 22px;
+      border-bottom: 1px solid var(--line);
+      background: #fbfcfe;
+    }
+
+    .recipe-head h3 {
+      margin: 0;
+      font-size: 23px;
+    }
+
+    .recipe-head p {
+      margin: 8px 0 0;
+      color: var(--muted);
+    }
+
+    .badge {
+      flex: 0 0 auto;
+      padding: 6px 10px;
+      border-radius: 999px;
+      color: #064e3b;
+      background: #ccfbf1;
+      font-size: 12px;
+      font-weight: 900;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .recipe-body {
+      padding: 22px;
+    }
+
+    .recipe-body h4 {
+      margin: 0 0 8px;
+      color: #344354;
+      font-size: 14px;
+      font-weight: 900;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+
+    .recipe-body ul {
+      margin: 12px 0 0;
+      padding-left: 20px;
+      color: var(--muted);
+    }
+
+    .recipe-body li {
+      margin: 7px 0;
+    }
+
+    .doc-block {
+      padding: 24px;
+    }
+
+    .doc-block ul,
+    .trouble ul,
+    .step ol {
+      margin: 12px 0 0;
+      padding-left: 20px;
+      color: var(--muted);
+    }
+
+    .doc-block li,
+    .trouble li,
+    .step li {
+      margin: 7px 0;
+    }
+
+    pre {
+      margin: 16px 0 0;
+      padding: 16px;
+      overflow: auto;
+      border-radius: 8px;
+      color: var(--code-ink);
+      background: var(--code);
+      font: 13px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    .band {
+      background: var(--panel-2);
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+      counter-reset: steps;
+    }
+
+    .step {
+      position: relative;
+      padding: 26px;
+      counter-increment: steps;
+    }
+
+    .step::before {
+      content: counter(steps);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 34px;
+      height: 34px;
+      margin-bottom: 18px;
+      border-radius: 50%;
+      color: #fff;
+      background: var(--accent-2);
+      font-weight: 900;
+    }
+
+    .trouble-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .callout {
+      margin-top: 24px;
+      padding: 20px;
+      border: 1px solid #bfdbfe;
+      border-radius: 8px;
+      color: #1e3a8a;
+      background: #eff6ff;
+    }
+
+    .callout strong {
+      display: block;
+      margin-bottom: 4px;
+      color: #172554;
+    }
+
+    .trouble {
+      padding: 24px;
+    }
+
+    .trouble h3 {
+      color: #7c2d12;
+    }
+
+    .footer {
+      padding: 32px 0;
+      color: #657487;
+      border-top: 1px solid var(--line);
+      background: #fff;
+    }
+
+    .footer .wrap {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    @media (max-width: 980px) {
+      .nav {
+        align-items: flex-start;
+        padding: 12px 0;
+      }
+
+      .nav-links {
+        display: none;
+      }
+
+      .stats,
+      .feature-grid,
+      .docs-grid,
+      .recipe-grid,
+      .steps,
+      .trouble-grid,
+      .insight-row,
+      .slider-shell {
+        grid-template-columns: 1fr;
+      }
+
+      .hero {
+        min-height: 620px;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .hero-inner {
+        padding: 84px 0 56px;
+      }
+
+      .hero-copy,
+      .section-head p {
+        font-size: 16px;
+      }
+
+      section {
+        padding: 58px 0;
+      }
+
+      .button {
+        width: 100%;
+      }
+
+      .stats {
+        margin-top: 34px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <nav class="nav" aria-label="Primary">
+      <a class="brand" href="#top">
+        <img src="https://assets.ghostcompiler.in/logo.png" alt="Ghost Compiler logo">
+        <span>Supervisor Manager</span>
+      </a>
+      <div class="nav-links">
+        <a href="#screenshots">Screenshots</a>
+        <a href="#install">Install</a>
+        <a href="#usage">Usage</a>
+        <a href="#troubleshooting">Troubleshooting</a>
+        <a class="button" href="https://github.com/ghostcompiler/supervisor-manager">GitHub</a>
+      </div>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="hero-inner">
+        <p class="eyebrow">Plesk Extension</p>
+        <h1>Supervisor Manager</h1>
+        <p class="hero-copy">Create, repair, monitor, and troubleshoot Supervisor programs from Plesk with domain-scoped access, correct Plesk PHP resolution, and live log controls.</p>
+        <div class="hero-actions">
+          <a class="button primary" href="#install">Install Latest</a>
+          <a class="button" href="#screenshots">View Screenshots</a>
+          <a class="button" href="https://github.com/ghostcompiler/supervisor-manager/releases/latest">Releases</a>
+        </div>
+        <div class="stats" aria-label="Highlights">
+          <div class="stat"><span>Access</span><strong>Admin, reseller, customer</strong></div>
+          <div class="stat"><span>Runtime</span><strong>Plesk PHP and Node PATH</strong></div>
+          <div class="stat"><span>Logs</span><strong>Live, copy, clear</strong></div>
+          <div class="stat"><span>Configs</span><strong>/etc/supervisor/conf.d</strong></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="features">
+      <div class="wrap">
+        <div class="section-head">
+          <h2>Built for hosted application workers.</h2>
+          <p>Supervisor Manager keeps process control close to Plesk domains, so background commands can be managed without handing every user a server shell.</p>
+        </div>
+        <div class="feature-grid">
+          <article class="feature"><span>1</span><h3>Domain scoped</h3><p>Programs are assigned to exact Plesk domain IDs. Customers and resellers only see programs they are allowed to access.</p></article>
+          <article class="feature"><span>2</span><h3>Correct PHP</h3><p>Generated configs resolve <code>php</code> through the selected domain PHP handler, such as Plesk PHP 8.4.</p></article>
+          <article class="feature"><span>3</span><h3>Service repair</h3><p>Admin diagnostics detect broken Supervisor sockets and provide a repair action for supported Linux systems.</p></article>
+          <article class="feature"><span>4</span><h3>Safe generation</h3><p>Project roots, config paths, log paths, process users, and allowed roots are validated in the privileged helper.</p></article>
+          <article class="feature"><span>5</span><h3>Live logs</h3><p>Open logs in a focused page, pause refresh, change line count, copy output, or truncate the managed log file.</p></article>
+          <article class="feature"><span>6</span><h3>Clean uninstall</h3><p>Uninstall hooks remove generated Supervisor configs, managed logs, and extension data created by the extension.</p></article>
+        </div>
+        <div class="insight-row">
+          <div class="insight-panel">
+            <h3>Designed for the messy middle of hosting.</h3>
+            <p>Background workers usually live between application code, domain permissions, Plesk PHP handlers, Supervisor service state, and server logs. Supervisor Manager brings those moving parts into one Plesk workflow so admins can fix runtime problems without hunting across five screens.</p>
+            <div class="mini-list">
+              <div><strong>Repair</strong><span>Detect and repair common Supervisor socket and service setup problems.</span></div>
+              <div><strong>Regenerate</strong><span>Rewrite configs after PHP handler, project root, command, or domain changes.</span></div>
+              <div><strong>Observe</strong><span>Tail logs live, copy the exact failure, clear noise, then restart with fresh output.</span></div>
+            </div>
+          </div>
+          <div class="insight-panel">
+            <h3>What gets generated?</h3>
+            <p>Each program receives a managed config with a scoped program name, application directory, domain PHP-aware PATH, process user, restart policy, and a dedicated log file.</p>
+            <pre><code>[program:example.com-queue-worker]
+command=/usr/bin/env php artisan queue:work
+directory=/var/www/vhosts/example.com/app
+environment=PATH="/opt/plesk/php/8.4/bin:..."
+user=example-user
+stdout_logfile=/var/log/supervisor/plesk/example.com-queue-worker.log</code></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="showcase" id="screenshots">
+      <div class="wrap">
+        <div class="section-head">
+          <h2>Light and dark theme screenshots.</h2>
+          <p>Pick a screen, then drag the handle to compare the Plesk light and dark appearances.</p>
+        </div>
+        <div class="slider-shell">
+          <div class="compare" id="compare" style="--split: 50%">
+            <img id="darkShot" src="screenshots/home_dark.png" alt="Supervisor Manager dashboard dark theme">
+            <img id="lightShot" class="light-img" src="screenshots/home_light.png" alt="Supervisor Manager dashboard light theme">
+            <div class="split-line" aria-hidden="true"></div>
+            <input id="themeRange" type="range" min="0" max="100" value="50" aria-label="Compare light and dark theme screenshots">
+          </div>
+          <div class="thumbs" aria-label="Screenshot selector">
+            <button class="active" type="button" data-view="home" data-label="Dashboard">Dashboard</button>
+            <button type="button" data-view="add" data-label="Add Program">Add Program</button>
+            <button type="button" data-view="edit" data-label="Edit Program">Edit Program</button>
+            <button type="button" data-view="log" data-label="Logs">Logs</button>
+            <button type="button" data-view="restart" data-label="Controls">Controls</button>
+            <button type="button" data-view="info" data-label="Info Page">Info Page</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="install">
+      <div class="wrap">
+        <div class="section-head">
+          <h2>Install or update.</h2>
+          <p>Use the rolling latest package for most servers, or pin a versioned release when you need repeatable deployments.</p>
+        </div>
+        <div class="docs-grid">
+          <article class="doc-block">
+            <h3>Latest package</h3>
+            <p>Install the newest GitHub Actions-built package directly through Plesk.</p>
+            <pre><code>plesk bin extension --install-url https://github.com/ghostcompiler/supervisor-manager/releases/download/latest/supervisor-manager.zip</code></pre>
+          </article>
+          <article class="doc-block">
+            <h3>Pinned release</h3>
+            <p>Use a fixed release asset when you want a known version.</p>
+            <pre><code>plesk bin extension --install-url https://github.com/ghostcompiler/supervisor-manager/releases/download/v1.0.3/supervisor-manager-1.0.3.zip</code></pre>
+          </article>
+          <article class="doc-block">
+            <h3>Manual upload</h3>
+            <p>Download the zip, then open Plesk Admin, go to Extensions, choose Upload Extension, and select the package.</p>
+            <pre><code>supervisor-manager-1.0.3.zip</code></pre>
+          </article>
+          <article class="doc-block">
+            <h3>Requirements</h3>
+            <ul>
+              <li>Plesk Onyx or Obsidian on Linux.</li>
+              <li>Supervisor package installed, or a supported OS for automatic setup.</li>
+              <li>Runtime installed for the command: PHP, Node.js, Python, or another CLI.</li>
+              <li>Trusted users for command management permissions.</li>
+            </ul>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="band" id="usage">
+      <div class="wrap">
+        <div class="section-head">
+          <h2>How to use it.</h2>
+          <p>The normal workflow is create, generate, start, and watch logs. Existing programs can be regenerated after runtime or PHP-handler changes.</p>
+        </div>
+        <div class="steps">
+          <article class="step">
+            <h3>Enable access</h3>
+            <ol>
+              <li>Open the Plesk service plan or subscription.</li>
+              <li>Enable Supervisor Manager access and specific manage/control/log permissions.</li>
+              <li>Set Maximum Supervisor programs to a positive number or unlimited for trusted users.</li>
+            </ol>
+          </article>
+          <article class="step">
+            <h3>Add a program</h3>
+            <ol>
+              <li>Choose a domain from Supervisor Manager or from the domain card.</li>
+              <li>Use a long-running command such as <code>php artisan queue:work</code>.</li>
+              <li>Set Project Root to the folder containing <code>artisan</code>, <code>package.json</code>, or your script.</li>
+            </ol>
+          </article>
+          <article class="step">
+            <h3>Operate safely</h3>
+            <ol>
+              <li>Generate config after saving edits.</li>
+              <li>Use Start, Stop, and Restart from the dashboard.</li>
+              <li>Open Logs to pause, copy, or clear managed log output.</li>
+            </ol>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <div class="section-head">
+          <h2>Deployment patterns.</h2>
+          <p>Use these recipes as starting points for common Laravel, Inertia, Next.js, and Node deployments. Commands run as the selected domain system user and are locked to that domain’s allowed project roots.</p>
+        </div>
+        <div class="recipe-grid">
+          <article class="recipe">
+            <div class="recipe-head">
+              <div>
+                <h3>Laravel queue worker</h3>
+                <p>Best for jobs, notifications, imports, mail, and slow background work.</p>
+              </div>
+              <span class="badge">PHP</span>
+            </div>
+            <div class="recipe-body">
+              <h4>Program fields</h4>
+              <pre><code>Supervisor Program Name: queue-worker
+Command: php artisan queue:work --sleep=3 --tries=3 --timeout=120
+Project Root: /var/www/vhosts/example.com/app
+Start on boot: enabled
+Restart if it exits: enabled</code></pre>
+              <h4>Generated config shape</h4>
+              <pre><code>[program:example.com-queue-worker]
+command=/usr/bin/env php artisan queue:work --sleep=3 --tries=3 --timeout=120
+directory=/var/www/vhosts/example.com/app
+environment=PATH="/opt/plesk/php/8.4/bin:..."
+user=example-user
+autorestart=true</code></pre>
+              <ul>
+                <li>Set the Plesk domain PHP version first, then regenerate config.</li>
+                <li>Use the folder containing <code>artisan</code>, not <code>public</code>.</li>
+                <li>Use Logs to catch missing extensions, database errors, or permission errors.</li>
+              </ul>
+            </div>
+          </article>
+
+          <article class="recipe">
+            <div class="recipe-head">
+              <div>
+                <h3>Laravel Inertia SSR</h3>
+                <p>Keeps Inertia server-side rendering alive as a supervised process.</p>
+              </div>
+              <span class="badge">SSR</span>
+            </div>
+            <div class="recipe-body">
+              <h4>Program fields</h4>
+              <pre><code>Supervisor Program Name: inertia-ssr
+Command: php artisan inertia:start-ssr
+Project Root: /var/www/vhosts/example.com/app
+Start on boot: enabled
+Restart if it exits: enabled</code></pre>
+              <h4>Before starting</h4>
+              <pre><code>cd /var/www/vhosts/example.com/app
+npm install
+npm run build
+php artisan config:cache</code></pre>
+              <ul>
+                <li>Supervisor Manager adds Plesk Node paths to <code>PATH</code> when Node is installed.</li>
+                <li>If Logs show Node missing, install/enable Node.js in Plesk and regenerate config.</li>
+                <li>Make sure your Laravel SSR settings use the expected host and port.</li>
+              </ul>
+            </div>
+          </article>
+
+          <article class="recipe">
+            <div class="recipe-head">
+              <div>
+                <h3>Next.js production server</h3>
+                <p>Runs a built Next.js app behind Plesk, nginx, or a proxy rule.</p>
+              </div>
+              <span class="badge">Node</span>
+            </div>
+            <div class="recipe-body">
+              <h4>Program fields</h4>
+              <pre><code>Supervisor Program Name: next-web
+Command: npm run start -- --hostname 127.0.0.1 --port 3000
+Project Root: /var/www/vhosts/example.com/next-app
+Start on boot: enabled
+Restart if it exits: enabled</code></pre>
+              <h4>Package script</h4>
+              <pre><code>{
+  "scripts": {
+    "build": "next build",
+    "start": "next start"
+  }
+}</code></pre>
+              <ul>
+                <li>Build the app before starting the Supervisor program.</li>
+                <li>Bind to <code>127.0.0.1</code> unless the app intentionally needs public network access.</li>
+                <li>Use Plesk proxy rules or nginx config to route traffic to the selected port.</li>
+              </ul>
+            </div>
+          </article>
+
+          <article class="recipe">
+            <div class="recipe-head">
+              <div>
+                <h3>Laravel scheduler loop</h3>
+                <p>Useful when cron is not enough or you want Supervisor to keep a scheduler loop alive.</p>
+              </div>
+              <span class="badge">Cron-like</span>
+            </div>
+            <div class="recipe-body">
+              <h4>Program fields</h4>
+              <pre><code>Supervisor Program Name: scheduler
+Command: php artisan schedule:work
+Project Root: /var/www/vhosts/example.com/app
+Start on boot: enabled
+Restart if it exits: enabled</code></pre>
+              <h4>Alternative</h4>
+              <pre><code># Use Plesk Scheduled Tasks for classic every-minute cron:
+php /var/www/vhosts/example.com/app/artisan schedule:run</code></pre>
+              <ul>
+                <li>Use only one scheduler approach per app unless you intentionally need both.</li>
+                <li>Prefer Plesk Scheduled Tasks for simple cron-style scheduling.</li>
+                <li>Use Supervisor for long-running scheduler workers that must restart automatically.</li>
+              </ul>
+            </div>
+          </article>
+
+          <article class="recipe">
+            <div class="recipe-head">
+              <div>
+                <h3>Node queue or websocket worker</h3>
+                <p>For websocket servers, queue consumers, bots, and long-running Node processes.</p>
+              </div>
+              <span class="badge">Worker</span>
+            </div>
+            <div class="recipe-body">
+              <h4>Program fields</h4>
+              <pre><code>Supervisor Program Name: realtime-worker
+Command: npm run worker
+Project Root: /var/www/vhosts/example.com/realtime-app
+Start on boot: enabled
+Restart if it exits: enabled</code></pre>
+              <h4>Direct script</h4>
+              <pre><code>Command: node server.js</code></pre>
+              <ul>
+                <li>Keep the command in the folder containing <code>package.json</code>.</li>
+                <li>Install dependencies as the domain user when possible.</li>
+                <li>Check Logs for missing environment variables and port conflicts.</li>
+              </ul>
+            </div>
+          </article>
+
+          <article class="recipe">
+            <div class="recipe-head">
+              <div>
+                <h3>Custom Python or shell worker</h3>
+                <p>Runs imports, crawlers, webhooks, or custom daemons from the domain space.</p>
+              </div>
+              <span class="badge">Custom</span>
+            </div>
+            <div class="recipe-body">
+              <h4>Program fields</h4>
+              <pre><code>Supervisor Program Name: importer
+Command: /usr/bin/python3 worker.py
+Project Root: /var/www/vhosts/example.com/importer
+Start on boot: enabled
+Restart if it exits: enabled</code></pre>
+              <h4>Shell script</h4>
+              <pre><code>Command: /bin/bash worker.sh</code></pre>
+              <ul>
+                <li>Use absolute paths for runtimes that are outside Plesk-managed PHP or Node.</li>
+                <li>Write logs to stdout or stderr so Supervisor can capture them.</li>
+                <li>Avoid commands that exit immediately; Supervisor will keep restarting them.</li>
+              </ul>
+            </div>
+          </article>
+        </div>
+        <div class="callout">
+          <strong>When should you regenerate config?</strong>
+          Regenerate after changing the command, project root, domain PHP version, Node version, or after upgrading the extension. Regeneration rewrites the managed config and keeps the displayed command aligned with the actual Supervisor program.
+        </div>
+      </div>
+    </section>
+
+    <section class="band">
+      <div class="wrap">
+        <div class="section-head">
+          <h2>Quick field guide.</h2>
+          <p>These fields are intentionally simple, but they control how Supervisor runs your program.</p>
+        </div>
+        <div class="docs-grid">
+          <article class="doc-block">
+            <h3>Supervisor Program Name</h3>
+            <p>Use a short stable name such as <code>queue-worker</code>, <code>inertia-ssr</code>, or <code>next-web</code>. The extension generates a domain-scoped internal Supervisor name so two domains can both use <code>queue-worker</code>.</p>
+          </article>
+          <article class="doc-block">
+            <h3>Command</h3>
+            <p>Enter the command exactly as a developer would run it from the project root. For Plesk PHP domains, <code>php</code> resolves to the selected domain PHP handler after config generation.</p>
+          </article>
+          <article class="doc-block">
+            <h3>Project Root</h3>
+            <p>Use the app root, not necessarily the document root. Laravel usually needs the folder containing <code>artisan</code>. Node apps usually need the folder containing <code>package.json</code>.</p>
+          </article>
+          <article class="doc-block">
+            <h3>Restart Options</h3>
+            <p>Enable start on boot and restart if it exits for real workers. Leave them off while testing commands that may fail repeatedly until dependencies are ready.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <div class="section-head">
+          <h2>Operational checklist.</h2>
+          <p>Use this order when a new worker does not start cleanly.</p>
+        </div>
+        <div class="steps">
+          <article class="step">
+            <h3>Verify the domain runtime</h3>
+            <ol>
+              <li>Open the domain card in Plesk and confirm the PHP or Node version.</li>
+              <li>Regenerate the config after runtime changes.</li>
+              <li>Check the generated config PATH starts with the expected runtime.</li>
+            </ol>
+          </article>
+          <article class="step">
+            <h3>Run once over SSH</h3>
+            <ol>
+              <li>Switch to the domain system user when possible.</li>
+              <li>Change into the project root.</li>
+              <li>Run the exact command and fix missing dependencies first.</li>
+            </ol>
+          </article>
+          <article class="step">
+            <h3>Start in Supervisor</h3>
+            <ol>
+              <li>Click Generate Config.</li>
+              <li>Click Start or Restart.</li>
+              <li>Open Logs, clear old output, restart again, and copy the fresh error if needed.</li>
+            </ol>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <div class="section-head">
+          <h2>Compact examples.</h2>
+          <p>For quick copying, these are the minimal field sets for common program types.</p>
+        </div>
+        <div class="docs-grid">
+          <article class="doc-block">
+            <h3>Laravel queue worker</h3>
+            <pre><code>Supervisor Program Name: queue-worker
+Command: php artisan queue:work --sleep=3 --tries=3
+Project Root: /var/www/vhosts/example.com/app</code></pre>
+          </article>
+          <article class="doc-block">
+            <h3>Inertia SSR</h3>
+            <pre><code>Supervisor Program Name: ssr
+Command: php artisan inertia:start-ssr
+Project Root: /var/www/vhosts/example.com/app</code></pre>
+          </article>
+          <article class="doc-block">
+            <h3>Next.js app</h3>
+            <pre><code>Supervisor Program Name: next-web
+Command: npm run start -- --hostname 127.0.0.1 --port 3000
+Project Root: /var/www/vhosts/example.com/next-app</code></pre>
+          </article>
+          <article class="doc-block">
+            <h3>Node worker</h3>
+            <pre><code>Supervisor Program Name: realtime-worker
+Command: npm run worker
+Project Root: /var/www/vhosts/example.com/realtime-app</code></pre>
+          </article>
+          <article class="doc-block">
+            <h3>Python worker</h3>
+            <pre><code>Supervisor Program Name: importer
+Command: /usr/bin/python3 worker.py
+Project Root: /var/www/vhosts/example.com/importer</code></pre>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="band" id="troubleshooting">
+      <div class="wrap">
+        <div class="section-head">
+          <h2>Troubleshooting.</h2>
+          <p>Most process issues come from wrong project roots, wrong runtime versions, missing service sockets, or commands that exit immediately.</p>
+        </div>
+        <div class="trouble-grid">
+          <article class="trouble">
+            <h3>Supervisor socket missing</h3>
+            <p>When the dashboard shows Supervisor needs setup or <code>unix:///var/run/supervisor.sock no such file</code>, use Repair Supervisor as admin.</p>
+            <pre><code>systemctl status supervisor
+supervisorctl status</code></pre>
+          </article>
+          <article class="trouble">
+            <h3>Wrong PHP version</h3>
+            <p>Regenerate the config after changing the domain PHP handler. The generated PATH should begin with the selected Plesk PHP directory.</p>
+            <pre><code>plesk db -N -B -e "select php_handler_id from hosting where dom_id = DOMAIN_ID"
+cat /etc/supervisor/conf.d/plesk-*.conf</code></pre>
+          </article>
+          <article class="trouble">
+            <h3>BACKOFF or FATAL</h3>
+            <ul>
+              <li>Open Logs and check the first application error.</li>
+              <li>Confirm the command stays running.</li>
+              <li>Confirm the project root contains the application entry file.</li>
+              <li>Check whether a port is already in use.</li>
+            </ul>
+          </article>
+          <article class="trouble">
+            <h3>Laravel artisan not found</h3>
+            <p>Use the Laravel project root, not the public document root.</p>
+            <pre><code>/var/www/vhosts/example.com/app
+# not
+/var/www/vhosts/example.com/app/public</code></pre>
+          </article>
+          <article class="trouble">
+            <h3>Logs are noisy</h3>
+            <p>Use Clear Log to truncate the managed log file, then restart the program and copy the fresh output.</p>
+          </article>
+          <article class="trouble">
+            <h3>Uninstall cleanup</h3>
+            <p>Generated configs with the Supervisor Manager header, managed logs, and extension data are cleaned on uninstall.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="reference">
+      <div class="wrap">
+        <div class="section-head">
+          <h2>Generated files and commands.</h2>
+          <p>These are the paths and commands most useful during server troubleshooting.</p>
+        </div>
+        <div class="docs-grid">
+          <article class="doc-block">
+            <h3>Generated paths</h3>
+            <pre><code>/etc/supervisor/conf.d/plesk-*.conf
+/etc/supervisord.d/plesk-*.conf
+/var/log/supervisor/plesk/*.log
+/usr/local/psa/var/modules/supervisor-manager/data/programs.json</code></pre>
+          </article>
+          <article class="doc-block">
+            <h3>Supervisor commands</h3>
+            <pre><code>supervisorctl status
+supervisorctl reread
+supervisorctl update
+systemctl restart supervisor</code></pre>
+          </article>
+          <article class="doc-block">
+            <h3>Runtime checks</h3>
+            <pre><code>which php
+php -v
+which node
+node -v</code></pre>
+          </article>
+          <article class="doc-block">
+            <h3>Safe process commands</h3>
+            <p>Supervisor is for long-running processes. Commands like <code>php -v</code> or <code>node --version</code> exit immediately and are rejected.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap">
+      <span>Supervisor Manager for Plesk by Ghost Compiler.</span>
+      <span><a href="mailto:hello@ghostcompiler.in">hello@ghostcompiler.in</a> · <a href="https://github.com/ghostcompiler/supervisor-manager">GitHub</a></span>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      var compare = document.getElementById('compare');
+      var range = document.getElementById('themeRange');
+      var light = document.getElementById('lightShot');
+      var dark = document.getElementById('darkShot');
+      var buttons = Array.prototype.slice.call(document.querySelectorAll('.thumbs button'));
+
+      function setSplit(value) {
+        compare.style.setProperty('--split', value + '%');
+      }
+
+      function setView(button) {
+        var view = button.getAttribute('data-view');
+        var label = button.getAttribute('data-label');
+        light.src = 'screenshots/' + view + '_light.png';
+        dark.src = 'screenshots/' + view + '_dark.png';
+        light.alt = 'Supervisor Manager ' + label + ' light theme';
+        dark.alt = 'Supervisor Manager ' + label + ' dark theme';
+        buttons.forEach(function (item) {
+          item.classList.toggle('active', item === button);
+        });
+      }
+
+      range.addEventListener('input', function () {
+        setSplit(range.value);
+      });
+
+      buttons.forEach(function (button) {
+        button.addEventListener('click', function () {
+          setView(button);
+        });
+      });
+
+      setSplit(range.value);
+    }());
+  </script>
+</body>
+</html>
